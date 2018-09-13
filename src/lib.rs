@@ -436,31 +436,3 @@ pub fn triangulate(points: &[Point]) -> Triangulation {
 
     triangulation
 }
-
-#[cfg(test)]
-mod tests {
-    extern crate rand;
-    use std::time::Instant;
-    use {triangulate, Point, Triangulation};
-
-    #[test]
-    fn bench_1m_uniform() {
-        let mut points: Vec<Point> = Vec::new();
-        for _i in 0..1000000 {
-            points.push(Point {
-                x: rand::random(),
-                y: rand::random(),
-            });
-        }
-        let now = Instant::now();
-        let _result: Triangulation = triangulate(&points);
-        println!(
-            "Triangulated {} points in {}s {}ms.",
-            points.len(),
-            now.elapsed().as_secs(),
-            now.elapsed().subsec_millis()
-        );
-        // println!("var points = {:?};", points);
-        // println!("var triangles = {:?};", result.triangles);
-    }
-}
