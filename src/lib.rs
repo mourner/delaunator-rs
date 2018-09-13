@@ -282,9 +282,6 @@ pub fn triangulate(points: &[Point]) -> Triangulation {
         halfedges: Vec::with_capacity(max_triangles * 3),
     };
 
-    // populate an array of point indices
-    let mut ids: Vec<usize> = (0..n).collect();
-
     // calculate input data bbox center
     let mut min_x = f64::INFINITY;
     let mut min_y = f64::INFINITY;
@@ -360,19 +357,21 @@ pub fn triangulate(points: &[Point]) -> Triangulation {
     // sort the points by distance from the seed triangle circumcenter
     let center = p0.circumcenter(p1, p2);
 
-    ids.sort_unstable_by(|i, j| {
-        let da = center.dist2(&points[*i]);
-        let db = center.dist2(&points[*j]);
-        da.partial_cmp(&db).unwrap()
-    });
+    let mut dists: Vec<_> = points
+        .iter()
+        .enumerate()
+        .map(|(i, point)| (i, center.dist2(point)))
+        .collect();
+
+    dists.sort_unstable_by(|&(_, da), &(_, db)| da.partial_cmp(&db).unwrap());
 
     let mut hull = Hull::new(n, center, i0, i1, i2, points);
 
     triangulation.add_triangle(i0, i1, i2, EMPTY, EMPTY, EMPTY);
 
-    for (k, &i) in ids.iter().enumerate() {
+    for (k, &(i, _)) in dists.iter().enumerate() {
         let p = &points[i];
-        if k > 0 && p.nearly_equals(&points[ids[k - 1]]) {
+        if k > 0 && p.nearly_equals(&points[dists[k - 1].0]) {
             continue;
         }
 
