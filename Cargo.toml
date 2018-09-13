@@ -3,5 +3,13 @@ name = "delaunator"
 version = "0.1.0"
 authors = ["Vladimir Agafonkin <agafonkin@gmail.com>"]
 
-[dependencies]
+[dev-dependencies]
+criterion = "0.2.5"
 rand = "0.5.5"
+
+[lib]
+bench = false
+
+[[bench]]
+name = "bench"
+harness = false
