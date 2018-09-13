@@ -1,4 +1,4 @@
-use std::{f64, fmt, mem};
+use std::{f64, fmt};
 
 #[derive(Clone, PartialEq)]
 pub struct Point {
@@ -79,6 +79,14 @@ pub struct Triangulation {
 }
 
 impl Triangulation {
+    fn new(n: usize) -> Triangulation {
+        let max_triangles = 2 * n - 5;
+        Triangulation {
+            triangles: Vec::with_capacity(max_triangles * 3),
+            halfedges: Vec::with_capacity(max_triangles * 3),
+        }
+    }
+
     fn add_triangle(
         &mut self,
         i0: usize,
@@ -248,7 +256,7 @@ impl Hull {
         self.hash[key] = i;
     }
 
-    fn find_visible_edge(&self, p: &Point, points: &[Point]) -> usize {
+    fn find_visible_edge(&self, p: &Point, points: &[Point]) -> (usize, bool) {
         let mut start: usize = 0;
         let key = self.hash_key(p);
         let len = self.hash.len();
@@ -264,24 +272,14 @@ impl Hull {
         while !p.orient(&points[e], &points[self.next[e]]) {
             e = self.next[e];
             if e == start {
-                return EMPTY;
+                return (EMPTY, false);
             }
         }
-        e
+        (e, e == start)
     }
 }
 
-pub fn triangulate(points: &[Point]) -> Triangulation {
-    let n = points.len();
-    let max_triangles = 2 * n - 5;
-
-    // arrays that will store the triangulation graph
-    let mut triangulation = Triangulation {
-        triangles: Vec::with_capacity(max_triangles * 3),
-        halfedges: Vec::with_capacity(max_triangles * 3),
-    };
-
-    // calculate input data bbox center
+fn calc_bbox_center(points: &[Point]) -> Point {
     let mut min_x = f64::INFINITY;
     let mut min_y = f64::INFINITY;
     let mut max_x = f64::NEG_INFINITY;
@@ -292,37 +290,34 @@ pub fn triangulate(points: &[Point]) -> Triangulation {
         max_x = max_x.max(p.x);
         max_y = max_y.max(p.y);
     }
-    let bbox_center = Point {
+    Point {
         x: (min_x + max_x) / 2.0,
         y: (min_y + max_y) / 2.0,
-    };
+    }
+}
 
-    // pick a seed point close to the center
+fn find_closest_point(points: &[Point], p0: &Point) -> usize {
     let mut min_dist = f64::INFINITY;
-    let mut i0: usize = 0;
+    let mut k: usize = 0;
     for (i, p) in points.iter().enumerate() {
-        let d = bbox_center.dist2(p);
-        if d < min_dist {
-            i0 = i;
+        let d = p0.dist2(p);
+        if d > 0.0 && d < min_dist {
+            k = i;
             min_dist = d;
         }
     }
+    k
+}
+
+fn find_seed_triangle(points: &[Point]) -> (usize, usize, usize) {
+    // pick a seed point close to the center
+    let bbox_center = calc_bbox_center(points);
+    let i0 = find_closest_point(points, &bbox_center);
     let p0 = &points[i0];
 
     // find the point closest to the seed
-    min_dist = f64::INFINITY;
-    let mut i1: usize = 0;
-    for (i, p) in points.iter().enumerate() {
-        if i == i0 {
-            continue;
-        }
-        let d = p0.dist2(p);
-        if d < min_dist {
-            i1 = i;
-            min_dist = d;
-        }
-    }
-    let mut p1 = &points[i1];
+    let i1 = find_closest_point(points, p0);
+    let p1 = &points[i1];
 
     // find the third point which forms the smallest circumcircle with the first two
     let mut min_radius = f64::INFINITY;
@@ -337,21 +332,28 @@ pub fn triangulate(points: &[Point]) -> Triangulation {
             min_radius = r;
         }
     }
-    let mut p2 = &points[i2];
 
     if min_radius == f64::INFINITY {
         panic!("No triangulation exists for this input");
     }
 
     // swap the order of the seed points for counter-clockwise orientation
-    if p0.orient(p1, p2) {
-        mem::swap(&mut i1, &mut i2);
-        mem::swap(&mut p1, &mut p2);
+    if p0.orient(p1, &points[i2]) {
+        (i0, i2, i1)
+    } else {
+        (i0, i1, i2)
     }
+}
+
+pub fn triangulate(points: &[Point]) -> Triangulation {
+    let n = points.len();
+    let (i0, i1, i2) = find_seed_triangle(points);
+    let center = (&points[i0]).circumcenter(&points[i1], &points[i2]);
+
+    let mut triangulation = Triangulation::new(n);
+    triangulation.add_triangle(i0, i1, i2, EMPTY, EMPTY, EMPTY);
 
     // sort the points by distance from the seed triangle circumcenter
-    let center = p0.circumcenter(p1, p2);
-
     let mut dists: Vec<_> = points
         .iter()
         .enumerate()
@@ -362,21 +364,20 @@ pub fn triangulate(points: &[Point]) -> Triangulation {
 
     let mut hull = Hull::new(n, center, i0, i1, i2, points);
 
-    triangulation.add_triangle(i0, i1, i2, EMPTY, EMPTY, EMPTY);
-
     for (k, &(i, _)) in dists.iter().enumerate() {
         let p = &points[i];
+
+        // skip near-duplicates
         if k > 0 && p.nearly_equals(&points[dists[k - 1].0]) {
             continue;
         }
-
         // skip seed triangle points
         if i == i0 || i == i1 || i == i2 {
             continue;
         }
 
         // find a visible edge on the convex hull using edge hash
-        let mut e = hull.find_visible_edge(p, points);
+        let (mut e, walk_back) = hull.find_visible_edge(p, points);
         if e == EMPTY {
             continue; // likely a near-duplicate point; skip it
         }
@@ -392,27 +393,27 @@ pub fn triangulate(points: &[Point]) -> Triangulation {
         let mut n = hull.next[e];
         loop {
             let q = hull.next[n];
-            if p.orient(&points[n], &points[q]) {
-                let t = triangulation.add_triangle(n, i, q, hull.tri[i], EMPTY, hull.tri[n]);
-                hull.tri[i] = triangulation.legalize(t + 2, points, &mut hull);
-                hull.next[n] = EMPTY; // mark as removed
-                n = q;
-            } else {
+            if !p.orient(&points[n], &points[q]) {
                 break;
             }
+            let t = triangulation.add_triangle(n, i, q, hull.tri[i], EMPTY, hull.tri[n]);
+            hull.tri[i] = triangulation.legalize(t + 2, points, &mut hull);
+            hull.next[n] = EMPTY; // mark as removed
+            n = q;
         }
 
         // walk backward from the other side, adding more triangles and flipping
-        loop {
-            let q = hull.prev[e];
-            if p.orient(&points[q], &points[e]) {
+        if walk_back {
+            loop {
+                let q = hull.prev[e];
+                if !p.orient(&points[q], &points[e]) {
+                    break;
+                }
                 let t = triangulation.add_triangle(q, i, e, EMPTY, hull.tri[e], hull.tri[q]);
                 triangulation.legalize(t + 2, points, &mut hull);
                 hull.tri[q] = t;
                 hull.next[e] = EMPTY; // mark as removed
                 e = q;
-            } else {
-                break;
             }
         }
 
