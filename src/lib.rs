@@ -79,15 +79,15 @@ pub struct Triangulation {
 }
 
 impl Triangulation {
-    fn add_triangle(&mut self,
-                    i0: usize,
-                    i1: usize,
-                    i2: usize,
-                    a: usize,
-                    b: usize,
-                    c: usize)
-                    -> usize {
-
+    fn add_triangle(
+        &mut self,
+        i0: usize,
+        i1: usize,
+        i2: usize,
+        a: usize,
+        b: usize,
+        c: usize,
+    ) -> usize {
         let t = self.triangles.len();
 
         self.triangles.push(i0);
@@ -206,9 +206,9 @@ impl Hull {
         let hash_len = (n as f64).sqrt() as usize;
 
         let mut hull = Hull {
-            prev: vec![0; n], // edge to prev edge
-            next: vec![0; n], // edge to next edge
-            tri: vec![0; n], // edge to adjacent halfedge
+            prev: vec![0; n],            // edge to prev edge
+            next: vec![0; n],            // edge to next edge
+            tri: vec![0; n],             // edge to adjacent halfedge
             hash: vec![EMPTY; hash_len], // angular edge hash
             start: i0,
             center: center,
@@ -237,11 +237,7 @@ impl Hull {
         let dy = p.y - self.center.y;
 
         let p = dx / (dx.abs() + dy.abs());
-        let a = (if dy > 0.0 {
-            3.0 - p
-        } else {
-            1.0 + p
-        }) / 4.0; // [0..1]
+        let a = (if dy > 0.0 { 3.0 - p } else { 1.0 + p }) / 4.0; // [0..1]
 
         let len = self.hash.len();
         (((len as f64) * a).floor() as usize) % len
@@ -443,8 +439,8 @@ pub fn triangulate(points: &[Point]) -> Triangulation {
 #[cfg(test)]
 mod tests {
     extern crate rand;
-    use {Point, Triangulation, triangulate};
     use std::time::Instant;
+    use {triangulate, Point, Triangulation};
 
     #[test]
     fn bench_1m_uniform() {
@@ -452,12 +448,17 @@ mod tests {
         for _i in 0..1000000 {
             points.push(Point {
                 x: rand::random(),
-                y: rand::random()
+                y: rand::random(),
             });
         }
         let now = Instant::now();
         let _result: Triangulation = triangulate(&points);
-        println!("Triangulated {} points in {}s {}ms.", points.len(), now.elapsed().as_secs(), now.elapsed().subsec_millis());
+        println!(
+            "Triangulated {} points in {}s {}ms.",
+            points.len(),
+            now.elapsed().as_secs(),
+            now.elapsed().subsec_millis()
+        );
         // println!("var points = {:?};", points);
         // println!("var triangles = {:?};", result.triangles);
     }
