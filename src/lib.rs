@@ -123,15 +123,15 @@ impl Triangulation {
         //           pr                    pr
         //
         let a0 = a - a % 3;
-        let b0 = b - b % 3;
-
-        let al = a0 + (a + 1) % 3;
         let ar = a0 + (a + 2) % 3;
-        let bl = b0 + (b + 2) % 3;
 
         if b == EMPTY {
             return ar;
         }
+
+        let b0 = b - b % 3;
+        let al = a0 + (a + 1) % 3;
+        let bl = b0 + (b + 2) % 3;
 
         let p0 = self.triangles[ar];
         let pr = self.triangles[a];
@@ -366,9 +366,9 @@ pub fn run(points: &[Point]) {
 
     triangulation.add_triangle(i0, i1, i2, EMPTY, EMPTY, EMPTY);
 
-    for (i, k) in ids.iter().enumerate() {
+    for (k, &i) in ids.iter().enumerate() {
         let p = &points[i];
-        if *k > 0 && p.nearly_equals(&points[i - 1]) {
+        if k > 0 && p.nearly_equals(&points[ids[k - 1]]) {
             continue;
         }
 
@@ -433,12 +433,22 @@ pub fn run(points: &[Point]) {
 
 #[cfg(test)]
 mod tests {
+    extern crate rand;
     use Point;
     use run;
+    use std::time::{Duration, Instant};
 
     #[test]
     fn it_works() {
-        let points = vec![Point { x: 0., y: 0. }, Point { x: 0., y: 1. }, Point { x: 1., y: 1. }];
+        let mut points: Vec<Point> = Vec::new();
+        for i in 0..1000000 {
+            points.push(Point {
+                x: rand::random(),
+                y: rand::random()
+            });
+        }
+        let now = Instant::now();
         run(&points);
+        println!("{}s {}ms", now.elapsed().as_secs(), now.elapsed().subsec_millis());
     }
 }
