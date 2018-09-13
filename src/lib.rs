@@ -1,5 +1,4 @@
-use std::f64;
-use std::fmt;
+use std::{f64, fmt, mem};
 
 #[derive(Clone, PartialEq)]
 pub struct Point {
@@ -212,7 +211,7 @@ impl Hull {
             tri: vec![0; n],             // edge to adjacent halfedge
             hash: vec![EMPTY; hash_len], // angular edge hash
             start: i0,
-            center: center,
+            center,
         };
 
         hull.next[i0] = i1;
@@ -346,12 +345,8 @@ pub fn triangulate(points: &[Point]) -> Triangulation {
 
     // swap the order of the seed points for counter-clockwise orientation
     if p0.orient(p1, p2) {
-        let i = i1;
-        i1 = i2;
-        i2 = i;
-        let p = p1;
-        p1 = p2;
-        p2 = p;
+        mem::swap(&mut i1, &mut i2);
+        mem::swap(&mut p1, &mut p2);
     }
 
     // sort the points by distance from the seed triangle circumcenter
