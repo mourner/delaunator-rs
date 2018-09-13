@@ -1,0 +1,6 @@
+[package]
+name = "delaunator"
+version = "0.1.0"
+authors = ["Vladimir Agafonkin <agafonkin@gmail.com>"]
+
+[dependencies]
