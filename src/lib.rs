@@ -1,8 +1,15 @@
 use std::f64;
+use std::fmt;
 
 pub struct Point {
     x: f64,
     y: f64,
+}
+
+impl fmt::Debug for Point {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "[{}, {}]", self.x, self.y)
+    }
 }
 
 impl Point {
@@ -66,7 +73,7 @@ impl Point {
 
 const EMPTY: usize = usize::max_value();
 
-struct Triangulation {
+pub struct Triangulation {
     triangles: Vec<usize>,
     halfedges: Vec<usize>,
 }
@@ -268,7 +275,7 @@ impl Hull {
     }
 }
 
-pub fn run(points: &[Point]) {
+pub fn triangulate(points: &[Point]) -> Triangulation {
     let n = points.len();
     let max_triangles = 2 * n - 5;
 
@@ -429,26 +436,29 @@ pub fn run(points: &[Point]) {
         hull.hash_edge(p, i);
         hull.hash_edge(&points[e], e);
     }
+
+    triangulation
 }
 
 #[cfg(test)]
 mod tests {
     extern crate rand;
-    use Point;
-    use run;
-    use std::time::{Duration, Instant};
+    use {Point, Triangulation, triangulate};
+    use std::time::Instant;
 
     #[test]
-    fn it_works() {
+    fn bench_1m_uniform() {
         let mut points: Vec<Point> = Vec::new();
-        for i in 0..1000000 {
+        for _i in 0..1000000 {
             points.push(Point {
                 x: rand::random(),
                 y: rand::random()
             });
         }
         let now = Instant::now();
-        run(&points);
-        println!("{}s {}ms", now.elapsed().as_secs(), now.elapsed().subsec_millis());
+        let _result: Triangulation = triangulate(&points);
+        println!("Triangulated {} points in {}s {}ms.", points.len(), now.elapsed().as_secs(), now.elapsed().subsec_millis());
+        // println!("var points = {:?};", points);
+        // println!("var triangles = {:?};", result.triangles);
     }
 }
