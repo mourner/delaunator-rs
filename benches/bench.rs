@@ -4,7 +4,7 @@ extern crate criterion;
 extern crate delaunator;
 extern crate rand;
 
-use criterion::{AxisScale, Criterion, ParameterizedBenchmark, PlotConfiguration, Throughput};
+use criterion::{AxisScale, Criterion, ParameterizedBenchmark, PlotConfiguration};
 use delaunator::{triangulate, Point};
 use rand::{Rng, SeedableRng, XorShiftRng};
 use std::iter::repeat_with;
@@ -19,21 +19,20 @@ fn bench(c: &mut Criterion) {
         .take(*COUNTS.last().unwrap())
         .collect();
 
+    let bench = ParameterizedBenchmark::new(
+        "triangulate",
+        move |b, &&count| {
+            let points = &all_points[..count];
+            b.iter(move || triangulate(points))
+        },
+        COUNTS,
+    );
+
     c.bench(
         "triangulate",
-        ParameterizedBenchmark::new(
-            "triangulate",
-            move |b, &&count| {
-                let points = &all_points[..count];
-                b.iter(move || triangulate(points))
-            },
-            COUNTS,
-        )
-        // need to override to a small sample size,
-        // otherwise 100 000 elems takes 1-2 mins
-        .sample_size(20)
-            .plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic))
-            .throughput(|&&count| Throughput::Elements(count as _)),
+        bench
+            .sample_size(20) // override to a small sample size, otherwise it takes too long
+            .plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic)),
     );
 }
 

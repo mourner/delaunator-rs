@@ -2,10 +2,10 @@
 name = "delaunator"
 version = "0.1.0"
 description = "A very fast 2D Delaunay triangulation library."
+documentation = "https://docs.rs/delaunator"
 repository = "https://github.com/mourner/delaunator-rs"
 readme = "README.md"
 license = "ISC"
-license-file = "LICENSE"
 categories = ["algorithms", "data-structures"]
 keywords = ["delaunay", "triangulation", "tessellation", "spatial", "geometry"]
 authors = ["Vladimir Agafonkin <agafonkin@gmail.com>"]

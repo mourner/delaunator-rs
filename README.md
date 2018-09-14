@@ -1,6 +1,33 @@
 ## delaunator-rs
 
-A Rust port of [Delaunator](https://github.com/mapbox/delaunator),
-a very fast 2D Delaunay triangulation library.
+A very fast 2D [Delaunay triangulation](https://en.wikipedia.org/wiki/Delaunay_triangulation) library for Rust.
+A port of [Delaunator](https://github.com/mapbox/delaunator).
 
-A work in progress and likely suboptimal (since I'm using this as a Rust learning project).
+[![delaunator on Crates.io](https://meritbadge.herokuapp.com/delaunator)](https://crates.io/crates/delaunator)
+
+### Example
+
+```rust
+use delaunator::{Point, triangulate};
+
+let mut points = vec![
+    Point { x: 0., y: 0. },
+    Point { x: 1., y: 0. },
+    Point { x: 1., y: 1. },
+    Point { x: 0., y: 1. },
+];
+
+let result = delaunator::triangulate(&points);
+println!("{:?}", result.triangles); // [0, 2, 1, 0, 3, 2]
+```
+
+### Performance
+
+| points | Time |
+| ---: | ---: |
+| 100 | 16.478µs |
+| 1,000 | 277.64µs |
+| 10,000 | 3.753ms |
+| 100,000 | 63.627ms |
+| 1,000,000 | 898.78s |
+| 10,000,000 | 11.857s |

@@ -1,5 +1,6 @@
 use std::{f64, fmt};
 
+/// Represents a 2D point in the input vector.
 #[derive(Clone, PartialEq)]
 pub struct Point {
     pub x: f64,
@@ -71,8 +72,12 @@ impl Point {
     }
 }
 
+/// Represents the area outside of the triangulation.
+/// Halfedges on the convex hull (which don't have an adjacent halfedge)
+/// will have this value.
 pub const EMPTY: usize = usize::max_value();
 
+/// Next halfedge in a triangle.
 pub fn next_halfedge(i: usize) -> usize {
     if i % 3 == 2 {
         i - 2
@@ -81,6 +86,7 @@ pub fn next_halfedge(i: usize) -> usize {
     }
 }
 
+/// Previous halfedge in a triangle.
 pub fn prev_halfedge(i: usize) -> usize {
     if i % 3 == 0 {
         i + 2
@@ -89,9 +95,21 @@ pub fn prev_halfedge(i: usize) -> usize {
     }
 }
 
+/// Result of the Delaunay triangulation.
 pub struct Triangulation {
+    /// A vector of point indices where each triple represents a Delaunay triangle.
+    /// All triangles are directed counter-clockwise.
     pub triangles: Vec<usize>,
+
+    /// A vector of adjacent halfedge indices that allows traversing the triangulation graph.
+    ///
+    /// `i`-th half-edge in the array corresponds to vertex `triangles[i]`
+    /// the half-edge is coming from. `halfedges[i]` is the index of a twin half-edge
+    /// in an adjacent triangle (or `EMPTY` for outer half-edges on the convex hull).
     pub halfedges: Vec<usize>,
+
+    /// A vector of indices that reference points on the convex hull of the triangulation,
+    /// counter-clockwise.
     pub hull: Vec<usize>,
 }
 
@@ -105,6 +123,7 @@ impl Triangulation {
         }
     }
 
+    /// The number of triangles in the triangulation.
     pub fn len(&self) -> usize {
         (self.triangles.len() / 3)
     }
@@ -365,6 +384,7 @@ fn find_seed_triangle(points: &[Point]) -> (usize, usize, usize) {
     }
 }
 
+/// Triangulate a set of 2D points.
 pub fn triangulate(points: &[Point]) -> Triangulation {
     let n = points.len();
     let (i0, i1, i2) = find_seed_triangle(points);
