@@ -1,6 +1,6 @@
 [package]
 name = "delaunator"
-version = "0.1.0"
+version = "0.1.1"
 description = "A very fast 2D Delaunay triangulation library."
 documentation = "https://docs.rs/delaunator"
 repository = "https://github.com/mourner/delaunator-rs"
