@@ -71,11 +71,28 @@ impl Point {
     }
 }
 
-const EMPTY: usize = usize::max_value();
+pub const EMPTY: usize = usize::max_value();
+
+pub fn next_halfedge(i: usize) -> usize {
+    if i % 3 == 2 {
+        i - 2
+    } else {
+        i + 1
+    }
+}
+
+pub fn prev_halfedge(i: usize) -> usize {
+    if i % 3 == 0 {
+        i + 2
+    } else {
+        i - 1
+    }
+}
 
 pub struct Triangulation {
-    triangles: Vec<usize>,
-    halfedges: Vec<usize>,
+    pub triangles: Vec<usize>,
+    pub halfedges: Vec<usize>,
+    pub hull: Vec<usize>,
 }
 
 impl Triangulation {
@@ -84,7 +101,12 @@ impl Triangulation {
         Triangulation {
             triangles: Vec::with_capacity(max_triangles * 3),
             halfedges: Vec::with_capacity(max_triangles * 3),
+            hull: Vec::new(),
         }
+    }
+
+    pub fn len(&self) -> usize {
+        (self.triangles.len() / 3)
     }
 
     fn add_triangle(
@@ -137,16 +159,14 @@ impl Triangulation {
         //          \||/                  \  /
         //           pr                    pr
         //
-        let a0 = a - a % 3;
-        let ar = a0 + (a + 2) % 3;
+        let ar = prev_halfedge(a);
 
         if b == EMPTY {
             return ar;
         }
 
-        let b0 = b - b % 3;
-        let al = a0 + (a + 1) % 3;
-        let bl = b0 + (b + 2) % 3;
+        let al = next_halfedge(a);
+        let bl = prev_halfedge(b);
 
         let p0 = self.triangles[ar];
         let pr = self.triangles[a];
@@ -190,7 +210,7 @@ impl Triangulation {
                 self.halfedges[bl] = ar;
             }
 
-            let br = b0 + (b + 1) % 3;
+            let br = next_halfedge(b);
 
             self.legalize(a, points, hull);
             return self.legalize(br, points, hull);
@@ -428,6 +448,19 @@ pub fn triangulate(points: &[Point]) -> Triangulation {
         hull.hash_edge(p, i);
         hull.hash_edge(&points[e], e);
     }
+
+    // expose hull as a vector of point indices
+    let mut e = hull.start;
+    loop {
+        triangulation.hull.push(e);
+        e = hull.next[e];
+        if e == hull.start {
+            break;
+        }
+    }
+
+    triangulation.triangles.shrink_to_fit();
+    triangulation.halfedges.shrink_to_fit();
 
     triangulation
 }
