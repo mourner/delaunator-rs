@@ -4,6 +4,9 @@ A very fast 2D [Delaunay triangulation](https://en.wikipedia.org/wiki/Delaunay_t
 A port of [Delaunator](https://github.com/mapbox/delaunator).
 
 [![delaunator on Crates.io](https://meritbadge.herokuapp.com/delaunator)](https://crates.io/crates/delaunator)
+[![Build Status](https://travis-ci.com/mourner/delaunator-rs.svg?branch=master)](https://travis-ci.com/mourner/delaunator-rs)
+
+### [Documentation](https://docs.rs/delaunator)
 
 ### Example
 
@@ -17,7 +20,7 @@ let mut points = vec![
     Point { x: 0., y: 1. },
 ];
 
-let result = delaunator::triangulate(&points);
+let result = delaunator::triangulate(&points)?;
 println!("{:?}", result.triangles); // [0, 2, 1, 0, 3, 2]
 ```
 
