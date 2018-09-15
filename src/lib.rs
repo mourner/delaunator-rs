@@ -1,5 +1,9 @@
 use std::{f64, fmt};
 
+/// Near-duplicate points (where both `x` and `y` only differ within this value)
+/// will not be included in the triangulation for robustness.
+pub const EPSILON: f64 = f64::EPSILON * 2.0;
+
 /// Represents a 2D point in the input vector.
 #[derive(Clone, PartialEq)]
 pub struct Point {
@@ -68,7 +72,7 @@ impl Point {
     }
 
     fn nearly_equals(&self, p: &Point) -> bool {
-        (self.x - p.x).abs() <= f64::EPSILON && (self.y - p.y).abs() <= f64::EPSILON
+        (self.x - p.x).abs() <= EPSILON && (self.y - p.y).abs() <= EPSILON
     }
 }
 
