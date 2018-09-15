@@ -13,7 +13,7 @@ fn main() {
         .collect();
 
     let now = std::time::Instant::now();
-    let result = delaunator::triangulate(&points);
+    let result = delaunator::triangulate(&points).unwrap();
     let elapsed = now.elapsed();
 
     println!(
