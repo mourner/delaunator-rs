@@ -31,6 +31,21 @@ fn robustness() {
     validate(&load_fixture("tests/fixtures/robust3.json"));
 }
 
+#[test]
+fn bad_input() {
+    let mut points = vec![Point { x: 0., y: 0.}];
+    assert!(triangulate(&points).is_none(), "Expected empty triangulation (1 point)");
+
+    points.push(Point { x: 1., y: 0.});
+    assert!(triangulate(&points).is_none(), "Expected empty triangulation (2 point)");
+
+    points.push(Point { x: 2., y: 0.});
+    assert!(triangulate(&points).is_none(), "Expected empty triangulation (collinear points)");
+
+    points.push(Point { x: 1., y: 1.});
+    validate(&points);
+}
+
 fn scale_points(points: &[Point], scale: f64) -> Vec<Point> {
     let scaled: Vec<Point> = points
         .iter()
@@ -52,7 +67,7 @@ fn validate(points: &[Point]) {
         triangles,
         halfedges,
         hull,
-    } = triangulate(&points);
+    } = triangulate(&points).expect("No triangulation exists for this input");
 
     // validate halfedges
     for (i, &h) in halfedges.iter().enumerate() {

@@ -339,7 +339,7 @@ fn calc_bbox_center(points: &[Point]) -> Point {
     }
 }
 
-fn find_closest_point(points: &[Point], p0: &Point) -> usize {
+fn find_closest_point(points: &[Point], p0: &Point) -> Option<usize> {
     let mut min_dist = f64::INFINITY;
     let mut k: usize = 0;
     for (i, p) in points.iter().enumerate() {
@@ -349,17 +349,21 @@ fn find_closest_point(points: &[Point], p0: &Point) -> usize {
             min_dist = d;
         }
     }
-    k
+    if min_dist == f64::INFINITY {
+        None
+    } else {
+        Some(k)
+    }
 }
 
-fn find_seed_triangle(points: &[Point]) -> (usize, usize, usize) {
+fn find_seed_triangle(points: &[Point]) -> Option<(usize, usize, usize)> {
     // pick a seed point close to the center
     let bbox_center = calc_bbox_center(points);
-    let i0 = find_closest_point(points, &bbox_center);
+    let i0 = find_closest_point(points, &bbox_center)?;
     let p0 = &points[i0];
 
     // find the point closest to the seed
-    let i1 = find_closest_point(points, p0);
+    let i1 = find_closest_point(points, p0)?;
     let p1 = &points[i1];
 
     // find the third point which forms the smallest circumcircle with the first two
@@ -377,21 +381,24 @@ fn find_seed_triangle(points: &[Point]) -> (usize, usize, usize) {
     }
 
     if min_radius == f64::INFINITY {
-        panic!("No triangulation exists for this input");
+        None
+    } else {
+        // swap the order of the seed points for counter-clockwise orientation
+        Some(if p0.orient(p1, &points[i2]) {
+            (i0, i2, i1)
+        } else {
+            (i0, i1, i2)
+        })
     }
 
-    // swap the order of the seed points for counter-clockwise orientation
-    if p0.orient(p1, &points[i2]) {
-        (i0, i2, i1)
-    } else {
-        (i0, i1, i2)
-    }
 }
 
 /// Triangulate a set of 2D points.
-pub fn triangulate(points: &[Point]) -> Triangulation {
+/// Returns `None` if no triangulation exists for the input (e.g. all points are collinear).
+pub fn triangulate(points: &[Point]) -> Option<Triangulation> {
     let n = points.len();
-    let (i0, i1, i2) = find_seed_triangle(points);
+
+    let (i0, i1, i2) = find_seed_triangle(points)?;
     let center = (&points[i0]).circumcenter(&points[i1], &points[i2]);
 
     let mut triangulation = Triangulation::new(n);
@@ -486,5 +493,5 @@ pub fn triangulate(points: &[Point]) -> Triangulation {
     triangulation.triangles.shrink_to_fit();
     triangulation.halfedges.shrink_to_fit();
 
-    triangulation
+    Some(triangulation)
 }
