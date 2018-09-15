@@ -1,3 +1,6 @@
+extern crate ordered_float;
+
+use ordered_float::OrderedFloat;
 use std::{f64, fmt};
 
 /// Represents a 2D point in the input vector.
@@ -335,59 +338,45 @@ fn calc_bbox_center(points: &[Point]) -> Point {
     }
 }
 
-fn find_closest_point(points: &[Point], p0: &Point) -> usize {
-    let mut min_dist = f64::INFINITY;
-    let mut k: usize = 0;
-    for (i, p) in points.iter().enumerate() {
-        let d = p0.dist2(p);
-        if d > 0.0 && d < min_dist {
-            k = i;
-            min_dist = d;
-        }
-    }
-    k
+fn find_closest_point<'p>(
+    points: &'p [Point],
+    i0: usize,
+    p0: &Point,
+) -> Option<(usize, &'p Point)> {
+    points
+        .iter()
+        .enumerate()
+        .filter(|&(i, _)| i != i0)
+        .min_by_key(|&(_, p)| OrderedFloat(p0.dist2(p)))
 }
 
-fn find_seed_triangle(points: &[Point]) -> (usize, usize, usize) {
+fn find_seed_triangle(points: &[Point]) -> Option<(usize, usize, usize)> {
     // pick a seed point close to the center
     let bbox_center = calc_bbox_center(points);
-    let i0 = find_closest_point(points, &bbox_center);
-    let p0 = &points[i0];
+    let (i0, p0) = find_closest_point(points, EMPTY, &bbox_center)?;
 
     // find the point closest to the seed
-    let i1 = find_closest_point(points, p0);
-    let p1 = &points[i1];
+    let (i1, p1) = find_closest_point(points, i0, p0)?;
 
     // find the third point which forms the smallest circumcircle with the first two
-    let mut min_radius = f64::INFINITY;
-    let mut i2: usize = 0;
-    for (i, p) in points.iter().enumerate() {
-        if i == i0 || i == i1 {
-            continue;
-        }
-        let r = p0.circumradius2(p1, p);
-        if r < min_radius {
-            i2 = i;
-            min_radius = r;
-        }
-    }
-
-    if min_radius == f64::INFINITY {
-        panic!("No triangulation exists for this input");
-    }
+    let (i2, p2) = points
+        .iter()
+        .enumerate()
+        .filter(|&(i, _)| i != i0 && i != i1)
+        .min_by_key(|&(_, p)| OrderedFloat(p0.circumradius2(p1, p)))?;
 
     // swap the order of the seed points for counter-clockwise orientation
-    if p0.orient(p1, &points[i2]) {
+    Some(if p0.orient(p1, p2) {
         (i0, i2, i1)
     } else {
         (i0, i1, i2)
-    }
+    })
 }
 
 /// Triangulate a set of 2D points.
-pub fn triangulate(points: &[Point]) -> Triangulation {
+pub fn triangulate(points: &[Point]) -> Option<Triangulation> {
     let n = points.len();
-    let (i0, i1, i2) = find_seed_triangle(points);
+    let (i0, i1, i2) = find_seed_triangle(points)?;
     let center = (&points[i0]).circumcenter(&points[i1], &points[i2]);
 
     let mut triangulation = Triangulation::new(n);
@@ -400,7 +389,7 @@ pub fn triangulate(points: &[Point]) -> Triangulation {
         .map(|(i, point)| (i, center.dist2(point)))
         .collect();
 
-    dists.sort_unstable_by(|&(_, da), &(_, db)| da.partial_cmp(&db).unwrap());
+    dists.sort_unstable_by_key(|&(_, d)| OrderedFloat(d));
 
     let mut hull = Hull::new(n, center, i0, i1, i2, points);
 
@@ -482,5 +471,5 @@ pub fn triangulate(points: &[Point]) -> Triangulation {
     triangulation.triangles.shrink_to_fit();
     triangulation.halfedges.shrink_to_fit();
 
-    triangulation
+    Some(triangulation)
 }
