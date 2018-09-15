@@ -1,14 +1,13 @@
 extern crate delaunator;
 extern crate rand;
 
-use delaunator::Point;
 use std::iter::repeat_with;
 
 const N: usize = 1_000_000;
 
 fn main() {
     let points: Vec<_> = repeat_with(rand::random)
-        .map(|(x, y)| Point { x, y })
+        .map(|(x, y)| delaunator::Point { x, y })
         .take(N)
         .collect();
 

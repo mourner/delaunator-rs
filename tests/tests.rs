@@ -33,16 +33,25 @@ fn robustness() {
 
 #[test]
 fn bad_input() {
-    let mut points = vec![Point { x: 0., y: 0.}];
-    assert!(triangulate(&points).is_none(), "Expected empty triangulation (1 point)");
+    let mut points = vec![Point { x: 0., y: 0. }];
+    assert!(
+        triangulate(&points).is_none(),
+        "Expected empty triangulation (1 point)"
+    );
 
-    points.push(Point { x: 1., y: 0.});
-    assert!(triangulate(&points).is_none(), "Expected empty triangulation (2 point)");
+    points.push(Point { x: 1., y: 0. });
+    assert!(
+        triangulate(&points).is_none(),
+        "Expected empty triangulation (2 point)"
+    );
 
-    points.push(Point { x: 2., y: 0.});
-    assert!(triangulate(&points).is_none(), "Expected empty triangulation (collinear points)");
+    points.push(Point { x: 2., y: 0. });
+    assert!(
+        triangulate(&points).is_none(),
+        "Expected empty triangulation (collinear points)"
+    );
 
-    points.push(Point { x: 1., y: 1.});
+    points.push(Point { x: 1., y: 1. });
     validate(&points);
 }
 

@@ -13,14 +13,14 @@ A port of [Delaunator](https://github.com/mapbox/delaunator).
 ```rust
 use delaunator::{Point, triangulate};
 
-let mut points = vec![
+let points = vec![
     Point { x: 0., y: 0. },
     Point { x: 1., y: 0. },
     Point { x: 1., y: 1. },
     Point { x: 0., y: 1. },
 ];
 
-let result = delaunator::triangulate(&points)?;
+let result = triangulate(&points).expect("No triangulation exists.");
 println!("{:?}", result.triangles); // [0, 2, 1, 0, 3, 2]
 ```
 

@@ -1,3 +1,24 @@
+/*!
+A very fast 2D [Delaunay Triangulation](https://en.wikipedia.org/wiki/Delaunay_triangulation) library for Rust.
+A port of [Delaunator](https://github.com/mapbox/delaunator).
+
+# Example
+
+```rust
+use delaunator::{Point, triangulate};
+
+let points = vec![
+    Point { x: 0., y: 0. },
+    Point { x: 1., y: 0. },
+    Point { x: 1., y: 1. },
+    Point { x: 0., y: 1. },
+];
+
+let result = triangulate(&points).expect("No triangulation exists.");
+println!("{:?}", result.triangles); // [0, 2, 1, 0, 3, 2]
+```
+*/
+
 use std::{f64, fmt};
 
 /// Near-duplicate points (where both `x` and `y` only differ within this value)
@@ -390,7 +411,6 @@ fn find_seed_triangle(points: &[Point]) -> Option<(usize, usize, usize)> {
             (i0, i1, i2)
         })
     }
-
 }
 
 /// Triangulate a set of 2D points.
