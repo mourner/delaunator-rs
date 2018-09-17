@@ -39,17 +39,17 @@ impl fmt::Debug for Point {
 }
 
 impl Point {
-    fn dist2(&self, p: &Point) -> f64 {
+    fn dist2(&self, p: &Self) -> f64 {
         let dx = self.x - p.x;
         let dy = self.y - p.y;
         dx * dx + dy * dy
     }
 
-    fn orient(&self, q: &Point, r: &Point) -> bool {
+    fn orient(&self, q: &Self, r: &Self) -> bool {
         (q.y - self.y) * (r.x - q.x) - (q.x - self.x) * (r.y - q.y) < 0.0
     }
 
-    fn circumdelta(&self, b: &Point, c: &Point) -> (f64, f64) {
+    fn circumdelta(&self, b: &Self, c: &Self) -> (f64, f64) {
         let dx = b.x - self.x;
         let dy = b.y - self.y;
         let ex = c.x - self.x;
@@ -64,20 +64,20 @@ impl Point {
         (x, y)
     }
 
-    fn circumradius2(&self, b: &Point, c: &Point) -> f64 {
+    fn circumradius2(&self, b: &Self, c: &Self) -> f64 {
         let (x, y) = self.circumdelta(b, c);
         x * x + y * y
     }
 
-    fn circumcenter(&self, b: &Point, c: &Point) -> Point {
+    fn circumcenter(&self, b: &Self, c: &Self) -> Self {
         let (x, y) = self.circumdelta(b, c);
-        Point {
+        Self {
             x: self.x + x,
             y: self.y + y,
         }
     }
 
-    fn in_circle(&self, b: &Point, c: &Point, p: &Point) -> bool {
+    fn in_circle(&self, b: &Self, c: &Self, p: &Self) -> bool {
         let dx = self.x - p.x;
         let dy = self.y - p.y;
         let ex = b.x - p.x;
@@ -92,7 +92,7 @@ impl Point {
         dx * (ey * cp - bp * fy) - dy * (ex * cp - bp * fx) + ap * (ex * fy - ey * fx) < 0.0
     }
 
-    fn nearly_equals(&self, p: &Point) -> bool {
+    fn nearly_equals(&self, p: &Self) -> bool {
         (self.x - p.x).abs() <= EPSILON && (self.y - p.y).abs() <= EPSILON
     }
 }
@@ -139,9 +139,9 @@ pub struct Triangulation {
 }
 
 impl Triangulation {
-    fn new(n: usize) -> Triangulation {
+    fn new(n: usize) -> Self {
         let max_triangles = 2 * n - 5;
-        Triangulation {
+        Self {
             triangles: Vec::with_capacity(max_triangles * 3),
             halfedges: Vec::with_capacity(max_triangles * 3),
             hull: Vec::new(),
@@ -274,10 +274,10 @@ struct Hull {
 }
 
 impl Hull {
-    fn new(n: usize, center: Point, i0: usize, i1: usize, i2: usize, points: &[Point]) -> Hull {
+    fn new(n: usize, center: Point, i0: usize, i1: usize, i2: usize, points: &[Point]) -> Self {
         let hash_len = (n as f64).sqrt() as usize;
 
-        let mut hull = Hull {
+        let mut hull = Self {
             prev: vec![0; n],            // edge to prev edge
             next: vec![0; n],            // edge to next edge
             tri: vec![0; n],             // edge to adjacent halfedge
