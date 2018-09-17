@@ -153,6 +153,22 @@ impl Triangulation {
         (self.triangles.len() / 3)
     }
 
+    fn twin(&self, halfedge_id: usize) -> usize {
+        self.halfedges[halfedge_id]
+    }
+    fn set_twin(&mut self, halfedge_id: usize, twin_id: usize) {
+        if halfedge_id != EMPTY {
+            self.halfedges[halfedge_id] = twin_id
+        }
+    }
+
+    fn origin(&self, halfedge_id: usize) -> usize {
+        self.triangles[halfedge_id]
+    }
+    fn set_origin(&mut self, halfedge_id: usize, point_id: usize) {
+        self.triangles[halfedge_id] = point_id;
+    }
+
     fn add_triangle(
         &mut self,
         i0: usize,
@@ -172,21 +188,14 @@ impl Triangulation {
         self.halfedges.push(b);
         self.halfedges.push(c);
 
-        if a != EMPTY {
-            self.halfedges[a] = t;
-        }
-        if b != EMPTY {
-            self.halfedges[b] = t + 1;
-        }
-        if c != EMPTY {
-            self.halfedges[c] = t + 2;
-        }
-
+        self.set_twin(a, t);
+        self.set_twin(b, t + 1);
+        self.set_twin(c, t + 2);
         t
     }
 
     fn legalize(&mut self, a: usize, points: &[Point], hull: &mut Hull) -> usize {
-        let b = self.halfedges[a];
+        let b = self.twin(a);
 
         // if the pair of triangles doesn't satisfy the Delaunay condition
         // (p1 is inside the circumcircle of [p0, pl, pr]), flip them,
@@ -212,47 +221,31 @@ impl Triangulation {
         let al = next_halfedge(a);
         let bl = prev_halfedge(b);
 
-        let p0 = self.triangles[ar];
-        let pr = self.triangles[a];
-        let pl = self.triangles[al];
-        let p1 = self.triangles[bl];
+        let p0 = self.origin(ar);
+        let pr = self.origin(a);
+        let pl = self.origin(al);
+        let p1 = self.origin(bl);
 
         let illegal = (&points[p0]).in_circle(&points[pr], &points[pl], &points[p1]);
         if illegal {
-            self.triangles[a] = p1;
-            self.triangles[b] = p0;
+            self.set_origin(a, p1);
+            self.set_origin(b, p0);
 
-            let hbl = self.halfedges[bl];
-            let har = self.halfedges[ar];
+            let hbl = self.twin(bl);
+            let har = self.twin(ar);
 
             // edge swapped on the other side of the hull (rare); fix the halfedge reference
             if hbl == EMPTY {
-                let mut e = hull.start;
-                loop {
-                    if hull.tri[e] == bl {
-                        hull.tri[e] = a;
-                        break;
-                    }
-                    e = hull.next[e];
-                    if e == hull.start {
-                        break;
-                    }
-                }
+                hull.fix_halfedge(bl, a);
             }
 
-            self.halfedges[a] = hbl;
-            self.halfedges[b] = har;
-            self.halfedges[ar] = bl;
+            self.set_twin(a, hbl);
+            self.set_twin(b, har);
+            self.set_twin(ar, bl);
 
-            if hbl != EMPTY {
-                self.halfedges[hbl] = a;
-            }
-            if har != EMPTY {
-                self.halfedges[har] = b;
-            }
-            if bl != EMPTY {
-                self.halfedges[bl] = ar;
-            }
+            self.set_twin(hbl, a);
+            self.set_twin(har, b);
+            self.set_twin(bl, ar);
 
             let br = next_halfedge(b);
 
@@ -280,7 +273,7 @@ impl Hull {
         let mut hull = Self {
             prev: vec![0; n],            // edge to prev edge
             next: vec![0; n],            // edge to next edge
-            tri: vec![0; n],             // edge to adjacent halfedge
+            tri: vec![0; n],             // point to halfedge
             hash: vec![EMPTY; hash_len], // angular edge hash
             start: i0,
             center,
@@ -340,6 +333,20 @@ impl Hull {
             }
         }
         (e, e == start)
+    }
+
+    fn fix_halfedge(&mut self, old_id: usize, new_id: usize) {
+        let mut e = self.start;
+        loop {
+            if self.tri[e] == old_id {
+                self.tri[e] = new_id;
+                break;
+            }
+            e = self.next[e];
+            if e == self.start {
+                break;
+            }
+        }
     }
 }
 
