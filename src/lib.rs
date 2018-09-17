@@ -91,10 +91,6 @@ impl Point {
 
         dx * (ey * cp - bp * fy) - dy * (ex * cp - bp * fx) + ap * (ex * fy - ey * fx) < 0.0
     }
-
-    fn nearly_equals(&self, p: &Self) -> bool {
-        (self.x - p.x).abs() <= EPSILON && (self.y - p.y).abs() <= EPSILON
-    }
 }
 
 /// Represents the area outside of the triangulation.
@@ -435,17 +431,22 @@ pub fn triangulate(points: &[Point]) -> Option<Triangulation> {
 
     let mut hull = Hull::new(n, center, i0, i1, i2, points);
 
-    for (k, &(i, _)) in dists.iter().enumerate() {
+    let mut prev_dist = f64::INFINITY;
+
+    for (i, d) in dists {
         let p = &points[i];
 
-        // skip near-duplicates
-        if k > 0 && p.nearly_equals(&points[dists[k - 1].0]) {
-            continue;
-        }
         // skip seed triangle points
         if i == i0 || i == i1 || i == i2 {
             continue;
         }
+
+        // skip near-duplicates
+        if (d - prev_dist).abs() <= EPSILON {
+            continue;
+        }
+
+        prev_dist = d;
 
         // find a visible edge on the convex hull using edge hash
         let (mut e, walk_back) = hull.find_visible_edge(p, points);
