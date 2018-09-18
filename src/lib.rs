@@ -487,16 +487,10 @@ impl Hull {
 }
 
 fn calc_bbox_center(points: &[Point]) -> Point {
-    let mut min_x = f64::INFINITY;
-    let mut min_y = f64::INFINITY;
-    let mut max_x = f64::NEG_INFINITY;
-    let mut max_y = f64::NEG_INFINITY;
-    for p in points.iter() {
-        min_x = min_x.min(p.x);
-        min_y = min_y.min(p.y);
-        max_x = max_x.max(p.x);
-        max_y = max_y.max(p.y);
-    }
+    let min_x = points.iter().fold(f64::INFINITY, |acc, p| acc.min(p.x));
+    let min_y = points.iter().fold(f64::INFINITY, |acc, p| acc.min(p.y));
+    let max_x = points.iter().fold(f64::NEG_INFINITY, |acc, p| acc.max(p.x));
+    let max_y = points.iter().fold(f64::NEG_INFINITY, |acc, p| acc.max(p.y));
     Point {
         x: (min_x + max_x) / 2.0,
         y: (min_y + max_y) / 2.0,
