@@ -139,13 +139,113 @@ pub struct Triangulation {
 }
 
 impl Triangulation {
-    fn new(n: usize) -> Self {
+    fn new(points: &[Point]) -> Option<Self> {
+        let n = points.len();
+
+        let (i0, i1, i2) = find_seed_triangle(points)?;
+        let center = (&points[i0]).circumcenter(&points[i1], &points[i2]);
         let max_triangles = 2 * n - 5;
-        Self {
+
+        let mut triangulation = Self {
             triangles: Vec::with_capacity(max_triangles * 3),
             halfedges: Vec::with_capacity(max_triangles * 3),
             hull: Vec::new(),
+        };
+
+        triangulation.add_triangle(i0, i1, i2, EMPTY, EMPTY, EMPTY);
+
+        // sort the points by distance from the seed triangle circumcenter
+        let mut dists: Vec<_> = points
+            .iter()
+            .enumerate()
+            .map(|(i, point)| (i, center.dist2(point)))
+            .collect();
+
+        dists.sort_unstable_by(|&(_, da), &(_, db)| da.partial_cmp(&db).unwrap());
+
+        let mut hull = Hull::new(n, center, i0, i1, i2, points);
+
+        for (k, &(i, _)) in dists.iter().enumerate() {
+            let p = &points[i];
+
+            // skip near-duplicates
+            if k > 0 && p.nearly_equals(&points[dists[k - 1].0]) {
+                continue;
+            }
+            // skip seed triangle points
+            if i == i0 || i == i1 || i == i2 {
+                continue;
+            }
+
+            // find a visible edge on the convex hull using edge hash
+            let (mut e, walk_back) = hull.find_visible_edge(p, points);
+            if e == EMPTY {
+                continue; // likely a near-duplicate point; skip it
+            }
+
+            // add the first triangle from the point
+            let t = triangulation.add_triangle(e, i, hull.next(e), EMPTY, EMPTY, hull.out(e));
+
+            // recursively flip triangles from the point until they satisfy the Delaunay condition
+            let out = triangulation.legalize(t + 2, points, &mut hull);
+            hull.set_out(i, out);
+            hull.set_out(e, t); // keep track of boundary triangles on the hull
+
+            // walk forward through the hull, adding more triangles and flipping recursively
+            let mut n = hull.next(e);
+            loop {
+                let q = hull.next(n);
+                if !p.orient(&points[n], &points[q]) {
+                    break;
+                }
+                let t = triangulation.add_triangle(n, i, q, hull.out(i), EMPTY, hull.out(n));
+                let out = triangulation.legalize(t + 2, points, &mut hull);;
+                hull.set_out(i, out);
+                hull.remove(n);
+                n = q;
+            }
+
+            // walk backward from the other side, adding more triangles and flipping
+            if walk_back {
+                loop {
+                    let q = hull.prev[e];
+                    if !p.orient(&points[q], &points[e]) {
+                        break;
+                    }
+                    let t = triangulation.add_triangle(q, i, e, EMPTY, hull.out(e), hull.out(q));
+                    triangulation.legalize(t + 2, points, &mut hull);
+                    hull.set_out(q, t);
+                    hull.remove(e);
+                    e = q;
+                }
+            }
+
+            // update the hull indices
+            hull.set_prev(i, e);
+            hull.set_next(i, n);
+            hull.set_prev(n, i);
+            hull.set_next(e, i);
+            hull.start = e;
+
+            // save the two new edges in the hash table
+            hull.hash_edge(p, i);
+            hull.hash_edge(&points[e], e);
         }
+
+        // expose hull as a vector of point indices
+        let mut e = hull.start;
+        loop {
+            triangulation.hull.push(e);
+            e = hull.next(e);
+            if e == hull.start {
+                break;
+            }
+        }
+
+        triangulation.triangles.shrink_to_fit();
+        triangulation.halfedges.shrink_to_fit();
+
+        Some(triangulation)
     }
 
     /// The number of triangles in the triangulation.
@@ -459,104 +559,5 @@ fn find_seed_triangle(points: &[Point]) -> Option<(usize, usize, usize)> {
 /// Triangulate a set of 2D points.
 /// Returns `None` if no triangulation exists for the input (e.g. all points are collinear).
 pub fn triangulate(points: &[Point]) -> Option<Triangulation> {
-    let n = points.len();
-
-    let (i0, i1, i2) = find_seed_triangle(points)?;
-    let center = (&points[i0]).circumcenter(&points[i1], &points[i2]);
-
-    let mut triangulation = Triangulation::new(n);
-    triangulation.add_triangle(i0, i1, i2, EMPTY, EMPTY, EMPTY);
-
-    // sort the points by distance from the seed triangle circumcenter
-    let mut dists: Vec<_> = points
-        .iter()
-        .enumerate()
-        .map(|(i, point)| (i, center.dist2(point)))
-        .collect();
-
-    dists.sort_unstable_by(|&(_, da), &(_, db)| da.partial_cmp(&db).unwrap());
-
-    let mut hull = Hull::new(n, center, i0, i1, i2, points);
-
-    for (k, &(i, _)) in dists.iter().enumerate() {
-        let p = &points[i];
-
-        // skip near-duplicates
-        if k > 0 && p.nearly_equals(&points[dists[k - 1].0]) {
-            continue;
-        }
-        // skip seed triangle points
-        if i == i0 || i == i1 || i == i2 {
-            continue;
-        }
-
-        // find a visible edge on the convex hull using edge hash
-        let (mut e, walk_back) = hull.find_visible_edge(p, points);
-        if e == EMPTY {
-            continue; // likely a near-duplicate point; skip it
-        }
-
-        // add the first triangle from the point
-        let t = triangulation.add_triangle(e, i, hull.next(e), EMPTY, EMPTY, hull.out(e));
-
-        // recursively flip triangles from the point until they satisfy the Delaunay condition
-        let out = triangulation.legalize(t + 2, points, &mut hull);
-        hull.set_out(i, out);
-        hull.set_out(e, t); // keep track of boundary triangles on the hull
-
-        // walk forward through the hull, adding more triangles and flipping recursively
-        let mut n = hull.next(e);
-        loop {
-            let q = hull.next(n);
-            if !p.orient(&points[n], &points[q]) {
-                break;
-            }
-            let t = triangulation.add_triangle(n, i, q, hull.out(i), EMPTY, hull.out(n));
-            let out = triangulation.legalize(t + 2, points, &mut hull);;
-            hull.set_out(i, out);
-            hull.remove(n);
-            n = q;
-        }
-
-        // walk backward from the other side, adding more triangles and flipping
-        if walk_back {
-            loop {
-                let q = hull.prev[e];
-                if !p.orient(&points[q], &points[e]) {
-                    break;
-                }
-                let t = triangulation.add_triangle(q, i, e, EMPTY, hull.out(e), hull.out(q));
-                triangulation.legalize(t + 2, points, &mut hull);
-                hull.set_out(q, t);
-                hull.remove(e);
-                e = q;
-            }
-        }
-
-        // update the hull indices
-        hull.set_prev(i, e);
-        hull.set_next(i, n);
-        hull.set_prev(n, i);
-        hull.set_next(e, i);
-        hull.start = e;
-
-        // save the two new edges in the hash table
-        hull.hash_edge(p, i);
-        hull.hash_edge(&points[e], e);
-    }
-
-    // expose hull as a vector of point indices
-    let mut e = hull.start;
-    loop {
-        triangulation.hull.push(e);
-        e = hull.next(e);
-        if e == hull.start {
-            break;
-        }
-    }
-
-    triangulation.triangles.shrink_to_fit();
-    triangulation.halfedges.shrink_to_fit();
-
-    Some(triangulation)
+    Some(Triangulation::new(points)?)
 }
