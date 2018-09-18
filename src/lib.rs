@@ -100,10 +100,10 @@ impl Point {
 /// Represents the area outside of the triangulation.
 /// Halfedges on the convex hull (which don't have an adjacent halfedge)
 /// will have this value.
-pub const EMPTY: usize = usize::max_value();
+pub const EMPTY: u32 = u32::max_value();
 
 /// Next halfedge in a triangle.
-pub fn next_halfedge(i: usize) -> usize {
+pub fn next_halfedge(i: u32) -> u32 {
     if i % 3 == 2 {
         i - 2
     } else {
@@ -112,7 +112,7 @@ pub fn next_halfedge(i: usize) -> usize {
 }
 
 /// Previous halfedge in a triangle.
-pub fn prev_halfedge(i: usize) -> usize {
+pub fn prev_halfedge(i: u32) -> u32 {
     if i % 3 == 0 {
         i + 2
     } else {
@@ -124,18 +124,18 @@ pub fn prev_halfedge(i: usize) -> usize {
 pub struct Triangulation {
     /// A vector of point indices where each triple represents a Delaunay triangle.
     /// All triangles are directed counter-clockwise.
-    pub triangles: Vec<usize>,
+    pub triangles: Vec<u32>,
 
     /// A vector of adjacent halfedge indices that allows traversing the triangulation graph.
     ///
     /// `i`-th half-edge in the array corresponds to vertex `triangles[i]`
     /// the half-edge is coming from. `halfedges[i]` is the index of a twin half-edge
     /// in an adjacent triangle (or `EMPTY` for outer half-edges on the convex hull).
-    pub halfedges: Vec<usize>,
+    pub halfedges: Vec<u32>,
 
     /// A vector of indices that reference points on the convex hull of the triangulation,
     /// counter-clockwise.
-    pub hull: Vec<usize>,
+    pub hull: Vec<u32>,
 }
 
 impl Triangulation {
@@ -143,7 +143,7 @@ impl Triangulation {
         let n = points.len();
 
         let (i0, i1, i2) = find_seed_triangle(points)?;
-        let center = (&points[i0]).circumcenter(&points[i1], &points[i2]);
+        let center = (&points[i0 as usize]).circumcenter(&points[i1 as usize], &points[i2 as usize]);
         let max_triangles = 2 * n - 5;
 
         let mut triangulation = Self {
@@ -165,8 +165,9 @@ impl Triangulation {
 
         let mut hull = Hull::new(n, center, i0, i1, i2, points);
 
-        for (k, &(i, _)) in dists.iter().enumerate() {
-            let p = &points[i];
+        for (k, &(iu, _)) in dists.iter().enumerate() {
+            let p = &points[iu];
+            let i = iu as u32;
 
             // skip near-duplicates
             if k > 0 && p.nearly_equals(&points[dists[k - 1].0]) {
@@ -195,7 +196,7 @@ impl Triangulation {
             let mut n = hull.next(e);
             loop {
                 let q = hull.next(n);
-                if !p.orient(&points[n], &points[q]) {
+                if !p.orient(&points[n as usize], &points[q as usize]) {
                     break;
                 }
                 let t = triangulation.add_triangle(n, i, q, hull.out(i), EMPTY, hull.out(n));
@@ -208,8 +209,8 @@ impl Triangulation {
             // walk backward from the other side, adding more triangles and flipping
             if walk_back {
                 loop {
-                    let q = hull.prev[e];
-                    if !p.orient(&points[q], &points[e]) {
+                    let q = hull.prev(e);
+                    if !p.orient(&points[q as usize], &points[e as usize]) {
                         break;
                     }
                     let t = triangulation.add_triangle(q, i, e, EMPTY, hull.out(e), hull.out(q));
@@ -229,7 +230,7 @@ impl Triangulation {
 
             // save the two new edges in the hash table
             hull.hash_edge(p, i);
-            hull.hash_edge(&points[e], e);
+            hull.hash_edge(&points[e as usize], e);
         }
 
         // expose hull as a vector of point indices
@@ -253,32 +254,32 @@ impl Triangulation {
         (self.triangles.len() / 3)
     }
 
-    fn twin(&self, halfedge_id: usize) -> usize {
-        self.halfedges[halfedge_id]
+    fn twin(&self, halfedge_id: u32) -> u32 {
+        self.halfedges[halfedge_id as usize]
     }
-    fn set_twin(&mut self, halfedge_id: usize, twin_id: usize) {
+    fn set_twin(&mut self, halfedge_id: u32, twin_id: u32) {
         if halfedge_id != EMPTY {
-            self.halfedges[halfedge_id] = twin_id
+            self.halfedges[halfedge_id as usize] = twin_id
         }
     }
 
-    fn origin(&self, halfedge_id: usize) -> usize {
-        self.triangles[halfedge_id]
+    fn origin(&self, halfedge_id: u32) -> u32 {
+        self.triangles[halfedge_id as usize]
     }
-    fn set_origin(&mut self, halfedge_id: usize, point_id: usize) {
-        self.triangles[halfedge_id] = point_id;
+    fn set_origin(&mut self, halfedge_id: u32, point_id: u32) {
+        self.triangles[halfedge_id as usize] = point_id;
     }
 
     fn add_triangle(
         &mut self,
-        i0: usize,
-        i1: usize,
-        i2: usize,
-        a: usize,
-        b: usize,
-        c: usize,
-    ) -> usize {
-        let t = self.triangles.len();
+        i0: u32,
+        i1: u32,
+        i2: u32,
+        a: u32,
+        b: u32,
+        c: u32,
+    ) -> u32 {
+        let t = self.triangles.len() as u32;
 
         self.triangles.push(i0);
         self.triangles.push(i1);
@@ -294,7 +295,7 @@ impl Triangulation {
         t
     }
 
-    fn legalize(&mut self, a: usize, points: &[Point], hull: &mut Hull) -> usize {
+    fn legalize(&mut self, a: u32, points: &[Point], hull: &mut Hull) -> u32 {
         let b = self.twin(a);
 
         // if the pair of triangles doesn't satisfy the Delaunay condition
@@ -326,7 +327,7 @@ impl Triangulation {
         let pl = self.origin(al);
         let p1 = self.origin(bl);
 
-        let illegal = (&points[p0]).in_circle(&points[pr], &points[pl], &points[p1]);
+        let illegal = (&points[p0 as usize]).in_circle(&points[pr as usize], &points[pl as usize], &points[p1 as usize]);
         if illegal {
             self.set_origin(a, p1);
             self.set_origin(b, p0);
@@ -359,26 +360,26 @@ impl Triangulation {
 /// data structure for tracking the edges of the advancing convex hull
 struct Hull {
     /// maps edge id to prev edge id
-    prev: Vec<usize>,
+    prev: Vec<u32>,
 
     /// maps edge id to next edge id
-    next: Vec<usize>,
+    next: Vec<u32>,
 
     /// maps point id to outgoing halfedge id
-    out: Vec<usize>,
+    out: Vec<u32>,
 
     /// angular hull edge hash
-    hash: Vec<usize>,
+    hash: Vec<u32>,
 
     /// starting point of the hull
-    start: usize,
+    start: u32,
 
     /// center of the angular hash
     center: Point,
 }
 
 impl Hull {
-    fn new(n: usize, center: Point, i0: usize, i1: usize, i2: usize, points: &[Point]) -> Self {
+    fn new(n: usize, center: Point, i0: u32, i1: u32, i2: u32, points: &[Point]) -> Self {
         let hash_len = (n as f64).sqrt() as usize;
 
         let mut hull = Self {
@@ -401,35 +402,35 @@ impl Hull {
         hull.set_out(i1, 1);
         hull.set_out(i2, 2);
 
-        hull.hash_edge(&points[i0], i0);
-        hull.hash_edge(&points[i1], i1);
-        hull.hash_edge(&points[i2], i2);
+        hull.hash_edge(&points[i0 as usize], i0);
+        hull.hash_edge(&points[i1 as usize], i1);
+        hull.hash_edge(&points[i2 as usize], i2);
 
         hull
     }
 
-    fn out(&self, point_id: usize) -> usize {
-        self.out[point_id]
+    fn out(&self, point_id: u32) -> u32 {
+        self.out[point_id as usize]
     }
-    fn set_out(&mut self, point_id: usize, halfedge_id: usize) {
-        self.out[point_id] = halfedge_id;
-    }
-
-    fn prev(&self, point_id: usize) -> usize {
-        self.prev[point_id]
-    }
-    fn set_prev(&mut self, point_id: usize, prev_point_id: usize) {
-        self.prev[point_id] = prev_point_id;
+    fn set_out(&mut self, point_id: u32, halfedge_id: u32) {
+        self.out[point_id as usize] = halfedge_id;
     }
 
-    fn next(&self, point_id: usize) -> usize {
-        self.next[point_id]
+    fn prev(&self, point_id: u32) -> u32 {
+        self.prev[point_id as usize]
     }
-    fn set_next(&mut self, point_id: usize, next_point_id: usize) {
-        self.next[point_id] = next_point_id;
+    fn set_prev(&mut self, point_id: u32, prev_point_id: u32) {
+        self.prev[point_id as usize] = prev_point_id;
     }
 
-    fn remove(&mut self, point_id: usize) {
+    fn next(&self, point_id: u32) -> u32 {
+        self.next[point_id as usize]
+    }
+    fn set_next(&mut self, point_id: u32, next_point_id: u32) {
+        self.next[point_id as usize] = next_point_id;
+    }
+
+    fn remove(&mut self, point_id: u32) {
         self.set_next(point_id, EMPTY); // mark as removed
     }
 
@@ -444,13 +445,13 @@ impl Hull {
         (((len as f64) * a).floor() as usize) % len
     }
 
-    fn hash_edge(&mut self, p: &Point, i: usize) {
+    fn hash_edge(&mut self, p: &Point, i: u32) {
         let key = self.hash_key(p);
         self.hash[key] = i;
     }
 
-    fn find_visible_edge(&self, p: &Point, points: &[Point]) -> (usize, bool) {
-        let mut start: usize = 0;
+    fn find_visible_edge(&self, p: &Point, points: &[Point]) -> (u32, bool) {
+        let mut start: u32 = 0;
         let key = self.hash_key(p);
         let len = self.hash.len();
         for j in 0..len {
@@ -462,7 +463,7 @@ impl Hull {
         start = self.prev(start);
         let mut e = start;
 
-        while !p.orient(&points[e], &points[self.next(e)]) {
+        while !p.orient(&points[e as usize], &points[self.next(e) as usize]) {
             e = self.next(e);
             if e == start {
                 return (EMPTY, false);
@@ -471,7 +472,7 @@ impl Hull {
         (e, e == start)
     }
 
-    fn fix_halfedge(&mut self, old_id: usize, new_id: usize) {
+    fn fix_halfedge(&mut self, old_id: u32, new_id: u32) {
         let mut e = self.start;
         loop {
             if self.out(e) == old_id {
@@ -497,13 +498,13 @@ fn calc_bbox_center(points: &[Point]) -> Point {
     }
 }
 
-fn find_closest_point(points: &[Point], p0: &Point) -> Option<usize> {
+fn find_closest_point(points: &[Point], p0: &Point) -> Option<u32> {
     let mut min_dist = f64::INFINITY;
-    let mut k: usize = 0;
+    let mut k: u32 = 0;
     for (i, p) in points.iter().enumerate() {
         let d = p0.dist2(p);
         if d > 0.0 && d < min_dist {
-            k = i;
+            k = i as u32;
             min_dist = d;
         }
     }
@@ -514,20 +515,21 @@ fn find_closest_point(points: &[Point], p0: &Point) -> Option<usize> {
     }
 }
 
-fn find_seed_triangle(points: &[Point]) -> Option<(usize, usize, usize)> {
+fn find_seed_triangle(points: &[Point]) -> Option<(u32, u32, u32)> {
     // pick a seed point close to the center
     let bbox_center = calc_bbox_center(points);
     let i0 = find_closest_point(points, &bbox_center)?;
-    let p0 = &points[i0];
+    let p0 = &points[i0 as usize];
 
     // find the point closest to the seed
     let i1 = find_closest_point(points, p0)?;
-    let p1 = &points[i1];
+    let p1 = &points[i1 as usize];
 
     // find the third point which forms the smallest circumcircle with the first two
     let mut min_radius = f64::INFINITY;
-    let mut i2: usize = 0;
-    for (i, p) in points.iter().enumerate() {
+    let mut i2: u32 = 0;
+    for (iu, p) in points.iter().enumerate() {
+        let i = iu as u32;
         if i == i0 || i == i1 {
             continue;
         }
@@ -537,12 +539,13 @@ fn find_seed_triangle(points: &[Point]) -> Option<(usize, usize, usize)> {
             min_radius = r;
         }
     }
+    let p2 = &points[i2 as usize];
 
     if min_radius == f64::INFINITY {
         None
     } else {
         // swap the order of the seed points for counter-clockwise orientation
-        Some(if p0.orient(p1, &points[i2]) {
+        Some(if p0.orient(p1, p2) {
             (i0, i2, i1)
         } else {
             (i0, i1, i2)

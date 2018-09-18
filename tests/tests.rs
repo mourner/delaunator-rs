@@ -80,7 +80,7 @@ fn validate(points: &[Point]) {
 
     // validate halfedges
     for (i, &h) in halfedges.iter().enumerate() {
-        if h != EMPTY && halfedges[h] != i {
+        if h != EMPTY && halfedges[h as usize] != i as u32 {
             panic!("Invalid halfedge connection");
         }
     }
@@ -91,8 +91,8 @@ fn validate(points: &[Point]) {
         let mut i = 0;
         let mut j = hull.len() - 1;
         while i < hull.len() {
-            let p0 = &points[hull[j]];
-            let p = &points[hull[i]];
+            let p0 = &points[hull[j] as usize];
+            let p = &points[hull[i] as usize];
             hull_areas.push((p.x - p0.x) * (p.y + p0.y));
             j = i;
             i += 1;
@@ -103,9 +103,9 @@ fn validate(points: &[Point]) {
         let mut triangle_areas = Vec::new();
         let mut i = 0;
         while i < triangles.len() {
-            let a = &points[triangles[i]];
-            let b = &points[triangles[i + 1]];
-            let c = &points[triangles[i + 2]];
+            let a = &points[triangles[i] as usize];
+            let b = &points[triangles[i + 1] as usize];
+            let c = &points[triangles[i + 2] as usize];
             triangle_areas.push(((b.y - a.y) * (c.x - b.x) - (b.x - a.x) * (c.y - b.y)).abs());
             i += 3;
         }
