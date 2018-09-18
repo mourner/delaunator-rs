@@ -256,13 +256,24 @@ impl Triangulation {
     }
 }
 
-// data structure for tracking the edges of the advancing convex hull
+/// data structure for tracking the edges of the advancing convex hull
 struct Hull {
+    /// maps edge id to prev edge id
     prev: Vec<usize>,
+
+    /// maps edge id to next edge id
     next: Vec<usize>,
-    tri: Vec<usize>,
+
+    /// maps point id to outgoing halfedge id
+    out: Vec<usize>,
+
+    /// angular hull edge hash
     hash: Vec<usize>,
+
+    /// starting point of the hull
     start: usize,
+
+    /// center of the angular hash
     center: Point,
 }
 
@@ -271,30 +282,55 @@ impl Hull {
         let hash_len = (n as f64).sqrt() as usize;
 
         let mut hull = Self {
-            prev: vec![0; n],            // edge to prev edge
-            next: vec![0; n],            // edge to next edge
-            tri: vec![0; n],             // point to halfedge
-            hash: vec![EMPTY; hash_len], // angular edge hash
+            prev: vec![0; n],
+            next: vec![0; n],
+            out: vec![0; n],
+            hash: vec![EMPTY; hash_len],
             start: i0,
             center,
         };
 
-        hull.next[i0] = i1;
-        hull.prev[i2] = i1;
-        hull.next[i1] = i2;
-        hull.prev[i0] = i2;
-        hull.next[i2] = i0;
-        hull.prev[i1] = i0;
+        hull.set_next(i0, i1);
+        hull.set_prev(i2, i1);
+        hull.set_next(i1, i2);
+        hull.set_prev(i0, i2);
+        hull.set_next(i2, i0);
+        hull.set_prev(i1, i0);
 
-        hull.tri[i0] = 0;
-        hull.tri[i1] = 1;
-        hull.tri[i2] = 2;
+        hull.set_out(i0, 0);
+        hull.set_out(i1, 1);
+        hull.set_out(i2, 2);
 
         hull.hash_edge(&points[i0], i0);
         hull.hash_edge(&points[i1], i1);
         hull.hash_edge(&points[i2], i2);
 
         hull
+    }
+
+    fn out(&self, point_id: usize) -> usize {
+        self.out[point_id]
+    }
+    fn set_out(&mut self, point_id: usize, halfedge_id: usize) {
+        self.out[point_id] = halfedge_id;
+    }
+
+    fn prev(&self, point_id: usize) -> usize {
+        self.prev[point_id]
+    }
+    fn set_prev(&mut self, point_id: usize, prev_point_id: usize) {
+        self.prev[point_id] = prev_point_id;
+    }
+
+    fn next(&self, point_id: usize) -> usize {
+        self.next[point_id]
+    }
+    fn set_next(&mut self, point_id: usize, next_point_id: usize) {
+        self.next[point_id] = next_point_id;
+    }
+
+    fn remove(&mut self, point_id: usize) {
+        self.set_next(point_id, EMPTY); // mark as removed
     }
 
     fn hash_key(&self, p: &Point) -> usize {
@@ -319,15 +355,15 @@ impl Hull {
         let len = self.hash.len();
         for j in 0..len {
             start = self.hash[(key + j) % len];
-            if start != EMPTY && self.next[start] != EMPTY {
+            if start != EMPTY && self.next(start) != EMPTY {
                 break;
             }
         }
-        start = self.prev[start];
+        start = self.prev(start);
         let mut e = start;
 
-        while !p.orient(&points[e], &points[self.next[e]]) {
-            e = self.next[e];
+        while !p.orient(&points[e], &points[self.next(e)]) {
+            e = self.next(e);
             if e == start {
                 return (EMPTY, false);
             }
@@ -338,11 +374,11 @@ impl Hull {
     fn fix_halfedge(&mut self, old_id: usize, new_id: usize) {
         let mut e = self.start;
         loop {
-            if self.tri[e] == old_id {
-                self.tri[e] = new_id;
+            if self.out(e) == old_id {
+                self.set_out(e, new_id);
                 break;
             }
-            e = self.next[e];
+            e = self.next(e);
             if e == self.start {
                 break;
             }
@@ -461,22 +497,24 @@ pub fn triangulate(points: &[Point]) -> Option<Triangulation> {
         }
 
         // add the first triangle from the point
-        let t = triangulation.add_triangle(e, i, hull.next[e], EMPTY, EMPTY, hull.tri[e]);
+        let t = triangulation.add_triangle(e, i, hull.next(e), EMPTY, EMPTY, hull.out(e));
 
         // recursively flip triangles from the point until they satisfy the Delaunay condition
-        hull.tri[i] = triangulation.legalize(t + 2, points, &mut hull);
-        hull.tri[e] = t; // keep track of boundary triangles on the hull
+        let out = triangulation.legalize(t + 2, points, &mut hull);
+        hull.set_out(i, out);
+        hull.set_out(e, t); // keep track of boundary triangles on the hull
 
         // walk forward through the hull, adding more triangles and flipping recursively
-        let mut n = hull.next[e];
+        let mut n = hull.next(e);
         loop {
-            let q = hull.next[n];
+            let q = hull.next(n);
             if !p.orient(&points[n], &points[q]) {
                 break;
             }
-            let t = triangulation.add_triangle(n, i, q, hull.tri[i], EMPTY, hull.tri[n]);
-            hull.tri[i] = triangulation.legalize(t + 2, points, &mut hull);
-            hull.next[n] = EMPTY; // mark as removed
+            let t = triangulation.add_triangle(n, i, q, hull.out(i), EMPTY, hull.out(n));
+            let out = triangulation.legalize(t + 2, points, &mut hull);;
+            hull.set_out(i, out);
+            hull.remove(n);
             n = q;
         }
 
@@ -487,19 +525,19 @@ pub fn triangulate(points: &[Point]) -> Option<Triangulation> {
                 if !p.orient(&points[q], &points[e]) {
                     break;
                 }
-                let t = triangulation.add_triangle(q, i, e, EMPTY, hull.tri[e], hull.tri[q]);
+                let t = triangulation.add_triangle(q, i, e, EMPTY, hull.out(e), hull.out(q));
                 triangulation.legalize(t + 2, points, &mut hull);
-                hull.tri[q] = t;
-                hull.next[e] = EMPTY; // mark as removed
+                hull.set_out(q, t);
+                hull.remove(e);
                 e = q;
             }
         }
 
         // update the hull indices
-        hull.prev[i] = e;
-        hull.next[i] = n;
-        hull.prev[n] = i;
-        hull.next[e] = i;
+        hull.set_prev(i, e);
+        hull.set_next(i, n);
+        hull.set_prev(n, i);
+        hull.set_next(e, i);
         hull.start = e;
 
         // save the two new edges in the hash table
@@ -511,7 +549,7 @@ pub fn triangulate(points: &[Point]) -> Option<Triangulation> {
     let mut e = hull.start;
     loop {
         triangulation.hull.push(e);
-        e = hull.next[e];
+        e = hull.next(e);
         if e == hull.start {
             break;
         }
