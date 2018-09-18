@@ -553,5 +553,5 @@ fn find_seed_triangle(points: &[Point]) -> Option<(usize, usize, usize)> {
 /// Triangulate a set of 2D points.
 /// Returns `None` if no triangulation exists for the input (e.g. all points are collinear).
 pub fn triangulate(points: &[Point]) -> Option<Triangulation> {
-    Some(Triangulation::new(points)?)
+    Triangulation::new(points)
 }
