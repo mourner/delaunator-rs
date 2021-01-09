@@ -150,7 +150,7 @@ impl Triangulation {
 
     /// The number of triangles in the triangulation.
     pub fn len(&self) -> usize {
-        (self.triangles.len() / 3)
+        self.triangles.len() / 3
     }
 
     fn add_triangle(
@@ -233,7 +233,7 @@ impl Triangulation {
                         hull.tri[e] = a;
                         break;
                     }
-                    e = hull.next[e];
+                    e = hull.prev[e];
                     if e == hull.start {
                         break;
                     }
