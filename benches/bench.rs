@@ -6,13 +6,13 @@ extern crate rand;
 
 use criterion::{AxisScale, Criterion, ParameterizedBenchmark, PlotConfiguration};
 use delaunator::{triangulate, Point};
-use rand::{Rng, SeedableRng, XorShiftRng};
+use rand::{Rng, SeedableRng, rngs::StdRng};
 use std::iter::repeat_with;
 
 const COUNTS: &[usize] = &[100, 1000, 10_000, 100_000];
 
 fn bench(c: &mut Criterion) {
-    let mut rng = XorShiftRng::from_seed([0; 16]);
+    let mut rng: StdRng = StdRng::seed_from_u64(123);
 
     let all_points: Vec<_> = repeat_with(|| rng.gen())
         .map(|(x, y)| Point { x, y })
