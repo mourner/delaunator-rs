@@ -185,80 +185,103 @@ impl Triangulation {
         t
     }
 
-    fn legalize(&mut self, a: usize, points: &[Point], hull: &mut Hull) -> usize {
-        let b = self.halfedges[a];
-
-        // if the pair of triangles doesn't satisfy the Delaunay condition
-        // (p1 is inside the circumcircle of [p0, pl, pr]), flip them,
-        // then do the same check/flip recursively for the new pair of triangles
-        //
-        //           pl                    pl
-        //          /||\                  /  \
-        //       al/ || \bl            al/    \a
-        //        /  ||  \              /      \
-        //       /  a||b  \    flip    /___ar___\
-        //     p0\   ||   /p1   =>   p0\---bl---/p1
-        //        \  ||  /              \      /
-        //       ar\ || /br             b\    /br
-        //          \||/                  \  /
-        //           pr                    pr
-        //
-        let ar = prev_halfedge(a);
-
-        if b == EMPTY {
-            return ar;
+    fn link(&mut self, a: usize, b: usize) {
+        self.halfedges[a] = b;
+        if b != EMPTY {
+            self.halfedges[b] = a;
         }
+    }
 
-        let al = next_halfedge(a);
-        let bl = prev_halfedge(b);
+    fn legalize(&mut self, mut a: usize, points: &[Point], hull: &mut Hull) -> usize {
+        const EDGE_STACK_SIZE: usize = 1024;
+        let mut ar;
+        let mut i = 0;
+        let mut edge_stack: [usize; EDGE_STACK_SIZE] = [0; EDGE_STACK_SIZE];
 
-        let p0 = self.triangles[ar];
-        let pr = self.triangles[a];
-        let pl = self.triangles[al];
-        let p1 = self.triangles[bl];
+        // recursion eliminated with a fixed-size stack
+        loop {
+            let b = self.halfedges[a];
 
-        let illegal = (&points[p0]).in_circle(&points[pr], &points[pl], &points[p1]);
-        if illegal {
-            self.triangles[a] = p1;
-            self.triangles[b] = p0;
+            // if the pair of triangles doesn't satisfy the Delaunay condition
+            // (p1 is inside the circumcircle of [p0, pl, pr]), flip them,
+            // then do the same check/flip recursively for the new pair of triangles
+            //
+            //           pl                    pl
+            //          /||\                  /  \
+            //       al/ || \bl            al/    \a
+            //        /  ||  \              /      \
+            //       /  a||b  \    flip    /___ar___\
+            //     p0\   ||   /p1   =>   p0\---bl---/p1
+            //        \  ||  /              \      /
+            //       ar\ || /br             b\    /br
+            //          \||/                  \  /
+            //           pr                    pr
+            //
+            ar = prev_halfedge(a);
 
-            let hbl = self.halfedges[bl];
-            let har = self.halfedges[ar];
+            // convex hull edge
+            if b == EMPTY {
+                if i == 0 {
+                    break;
+                }
 
-            // edge swapped on the other side of the hull (rare); fix the halfedge reference
-            if hbl == EMPTY {
-                let mut e = hull.start;
-                loop {
-                    if hull.tri[e] == bl {
-                        hull.tri[e] = a;
-                        break;
-                    }
-                    e = hull.prev[e];
-                    if e == hull.start {
-                        break;
+                i -= 1;
+                a = edge_stack[i];
+                continue;
+            }
+
+            let al = next_halfedge(a);
+            let bl = prev_halfedge(b);
+
+            let p0 = self.triangles[ar];
+            let pr = self.triangles[a];
+            let pl = self.triangles[al];
+            let p1 = self.triangles[bl];
+
+            let illegal = (&points[p0]).in_circle(&points[pr], &points[pl], &points[p1]);
+            if illegal {
+                self.triangles[a] = p1;
+                self.triangles[b] = p0;
+
+                let hbl = self.halfedges[bl];
+
+                // edge swapped on the other side of the hull (rare); fix the halfedge reference
+                if hbl == EMPTY {
+                    let mut e = hull.start;
+                    loop {
+                        if hull.tri[e] == bl {
+                            hull.tri[e] = a;
+                            break;
+                        }
+                        e = hull.prev[e];
+                        if e == hull.start {
+                            break;
+                        }
                     }
                 }
-            }
 
-            self.halfedges[a] = hbl;
-            self.halfedges[b] = har;
-            self.halfedges[ar] = bl;
+                self.link(a, hbl);
+                self.link(b, self.halfedges[ar]);
+                self.link(ar, bl);
 
-            if hbl != EMPTY {
-                self.halfedges[hbl] = a;
-            }
-            if har != EMPTY {
-                self.halfedges[har] = b;
-            }
-            if bl != EMPTY {
-                self.halfedges[bl] = ar;
-            }
+                let br = next_halfedge(b);
 
-            let br = next_halfedge(b);
-
-            self.legalize(a, points, hull);
-            return self.legalize(br, points, hull);
+                // don't worry about hitting the cap: it can only happen on extremely degenerate input
+                if i < EDGE_STACK_SIZE {
+                    edge_stack[i] = br;
+                    i += 1;
+                } else {
+                    panic!("Edge stack overflow");
+                }
+            } else {
+                if i == 0 {
+                    break;
+                }
+                i -= 1;
+                a = edge_stack[i];
+            }
         }
+
         ar
     }
 }
