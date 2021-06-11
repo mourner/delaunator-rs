@@ -76,6 +76,7 @@ fn validate(points: &[Point]) {
         triangles,
         halfedges,
         hull,
+        ..
     } = triangulate(&points).expect("No triangulation exists for this input");
 
     // validate halfedges

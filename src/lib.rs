@@ -24,6 +24,7 @@ use std::{f64, fmt};
 /// Near-duplicate points (where both `x` and `y` only differ within this value)
 /// will not be included in the triangulation for robustness.
 pub const EPSILON: f64 = f64::EPSILON * 2.0;
+const EDGE_STACK_SIZE: usize = 1024;
 
 /// Represents a 2D point in the input vector.
 #[derive(Clone, PartialEq)]
@@ -136,6 +137,8 @@ pub struct Triangulation {
     /// A vector of indices that reference points on the convex hull of the triangulation,
     /// counter-clockwise.
     pub hull: Vec<usize>,
+
+    edge_stack: [usize; EDGE_STACK_SIZE],
 }
 
 impl Triangulation {
@@ -145,6 +148,7 @@ impl Triangulation {
             triangles: Vec::with_capacity(max_triangles * 3),
             halfedges: Vec::with_capacity(max_triangles * 3),
             hull: Vec::new(),
+            edge_stack: [0; EDGE_STACK_SIZE],
         }
     }
 
@@ -185,6 +189,7 @@ impl Triangulation {
         t
     }
 
+    #[inline]
     fn link(&mut self, a: usize, b: usize) {
         self.halfedges[a] = b;
         if b != EMPTY {
@@ -193,10 +198,8 @@ impl Triangulation {
     }
 
     fn legalize(&mut self, mut a: usize, points: &[Point], hull: &mut Hull) -> usize {
-        const EDGE_STACK_SIZE: usize = 1024;
         let mut ar;
         let mut i = 0;
-        let mut edge_stack: [usize; EDGE_STACK_SIZE] = [0; EDGE_STACK_SIZE];
 
         // recursion eliminated with a fixed-size stack
         loop {
@@ -226,7 +229,7 @@ impl Triangulation {
                 }
 
                 i -= 1;
-                a = edge_stack[i];
+                a = self.edge_stack[i];
                 continue;
             }
 
@@ -268,7 +271,7 @@ impl Triangulation {
 
                 // don't worry about hitting the cap: it can only happen on extremely degenerate input
                 if i < EDGE_STACK_SIZE {
-                    edge_stack[i] = br;
+                    self.edge_stack[i] = br;
                     i += 1;
                 } else {
                     panic!("Edge stack overflow");
@@ -278,7 +281,7 @@ impl Triangulation {
                     break;
                 }
                 i -= 1;
-                a = edge_stack[i];
+                a = self.edge_stack[i];
             }
         }
 
