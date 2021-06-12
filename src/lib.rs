@@ -14,7 +14,7 @@ let points = vec![
     Point { x: 0., y: 1. },
 ];
 
-let result = triangulate(&points).expect("No triangulation exists.");
+let result = triangulate(&points);
 println!("{:?}", result.triangles); // [0, 2, 1, 0, 3, 2]
 ```
 */
@@ -26,7 +26,7 @@ use std::{f64, fmt};
 pub const EPSILON: f64 = f64::EPSILON * 2.0;
 
 /// Represents a 2D point in the input vector.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Default)]
 pub struct Point {
     pub x: f64,
     pub y: f64,
@@ -140,7 +140,12 @@ pub struct Triangulation {
 
 impl Triangulation {
     fn new(n: usize) -> Self {
-        let max_triangles = 2 * n - 5;
+        let max_triangles = if n > 2 {
+            2 * n - 5
+        } else {
+            0
+        };
+
         Self {
             triangles: Vec::with_capacity(max_triangles * 3),
             halfedges: Vec::with_capacity(max_triangles * 3),
@@ -413,12 +418,51 @@ fn find_seed_triangle(points: &[Point]) -> Option<(usize, usize, usize)> {
     }
 }
 
-/// Triangulate a set of 2D points.
-/// Returns `None` if no triangulation exists for the input (e.g. all points are collinear).
-pub fn triangulate(points: &[Point]) -> Option<Triangulation> {
-    let n = points.len();
+fn sortf(f: &mut [(usize, f64)]) {
+    f.sort_unstable_by(|&(_, da), &(_, db)| da.partial_cmp(&db).unwrap());
+}
 
-    let (i0, i1, i2) = find_seed_triangle(points)?;
+/// Order collinear points by dx (or dy if all x are identical) and return the list as a hull
+fn handle_collinear_points(points: &[Point]) -> Triangulation {
+    let Point { x, y } = points.first().cloned().unwrap_or_default();
+
+    let mut dist: Vec<_> = points
+        .iter()
+        .enumerate()
+        .map(|(i, p)| {
+            let mut d = p.x - x;
+            if d == 0.0 {
+                d = p.y - y;
+            }
+            (i, d)
+        })
+        .collect();
+    sortf(&mut dist);
+    println!("{:?}", dist);
+
+    let mut triangulation = Triangulation::new(0);
+    let mut d0 = f64::NEG_INFINITY;
+    for (i, distance) in dist {
+        if distance > d0 {
+            triangulation.hull.push(i);
+            d0 = distance;
+        }
+    }
+
+    triangulation
+}
+
+/// Triangulate a set of 2D points.
+/// Returns the triangulation for the input points.
+/// For the degenerated case when all points are collinear, returns an empty triangulation where all points are in the hull.
+pub fn triangulate(points: &[Point]) -> Triangulation {
+    let seed_triangle = find_seed_triangle(points);
+    if seed_triangle.is_none() {
+        return handle_collinear_points(points);
+    }
+
+    let n = points.len();
+    let (i0, i1, i2) = seed_triangle.expect("At this stage, points are guaranteed to yeild a seed triangle");
     let center = (&points[i0]).circumcenter(&points[i1], &points[i2]);
 
     let mut triangulation = Triangulation::new(n);
@@ -431,7 +475,7 @@ pub fn triangulate(points: &[Point]) -> Option<Triangulation> {
         .map(|(i, point)| (i, center.dist2(point)))
         .collect();
 
-    dists.sort_unstable_by(|&(_, da), &(_, db)| da.partial_cmp(&db).unwrap());
+    sortf(&mut dists);
 
     let mut hull = Hull::new(n, center, i0, i1, i2, points);
 
@@ -513,5 +557,5 @@ pub fn triangulate(points: &[Point]) -> Option<Triangulation> {
     triangulation.triangles.shrink_to_fit();
     triangulation.halfedges.shrink_to_fit();
 
-    Some(triangulation)
+    triangulation
 }

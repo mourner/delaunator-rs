@@ -12,7 +12,7 @@ fn main() {
         .collect();
 
     let now = std::time::Instant::now();
-    let result = delaunator::triangulate(&points).expect("No triangulation exists for this input.");
+    let result = delaunator::triangulate(&points);
     let elapsed = now.elapsed();
 
     println!(
