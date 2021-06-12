@@ -438,7 +438,6 @@ fn handle_collinear_points(points: &[Point]) -> Triangulation {
         })
         .collect();
     sortf(&mut dist);
-    println!("{:?}", dist);
 
     let mut triangulation = Triangulation::new(0);
     let mut d0 = f64::NEG_INFINITY;
