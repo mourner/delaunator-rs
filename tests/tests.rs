@@ -1,6 +1,3 @@
-extern crate delaunator;
-extern crate serde_json;
-
 use delaunator::{triangulate, Point, Triangulation, EMPTY, EPSILON};
 use std::f64;
 use std::fs::File;
@@ -33,26 +30,74 @@ fn robustness() {
 
 #[test]
 fn bad_input() {
-    let mut points = vec![Point { x: 0., y: 0. }];
-    assert!(
-        triangulate(&points).is_none(),
-        "Expected empty triangulation (1 point)"
-    );
+    let mut points = vec![];
+    let Triangulation {
+        triangles,
+        halfedges,
+        hull,
+    } = triangulate(&points);
+
+    assert!(triangles.is_empty(), "Expected no triangles (0 point)");
+    assert!(halfedges.is_empty(), "Expected no edges (0 point)");
+    assert!(hull.is_empty(), "Expected no hull (0 point)");
+
+    points.push(Point { x: 0., y: 0. });
+    let Triangulation {
+        triangles,
+        halfedges,
+        hull,
+    } = triangulate(&points);
+
+    assert!(triangles.is_empty(), "Expected no triangles (1 point)");
+    assert!(halfedges.is_empty(), "Expected no edges (1 point)");
+    assert!(hull.len() == 1, "Expected single point on hull (1 point)");
 
     points.push(Point { x: 1., y: 0. });
-    assert!(
-        triangulate(&points).is_none(),
-        "Expected empty triangulation (2 point)"
-    );
+    let Triangulation {
+        triangles,
+        halfedges,
+        hull,
+    } = triangulate(&points);
+
+    assert!(triangles.is_empty(), "Expected no triangles (2 points)");
+    assert!(halfedges.is_empty(), "Expected no edges (2 points)");
+    assert!(hull.len() == 2, "Expected two points on hull (2 point)");
+    assert!(hull.iter().enumerate().all(|(i, v)| i == *v), "Expected ordered hull points (2 point)");
 
     points.push(Point { x: 2., y: 0. });
-    assert!(
-        triangulate(&points).is_none(),
-        "Expected empty triangulation (collinear points)"
-    );
+    let Triangulation {
+        triangles,
+        halfedges,
+        hull,
+    } = triangulate(&points);
+
+    assert!(triangles.is_empty(), "Expected no triangles (3 collinear points)");
+    assert!(halfedges.is_empty(), "Expected no edges (3 collinear points)");
+    assert!(hull.len() == 3, "Expected three points on hull (3 collinear points)");
+    assert!(hull.iter().enumerate().all(|(i, v)| i == *v), "Expected ordered hull points (3 collinear points)");
 
     points.push(Point { x: 1., y: 1. });
     validate(&points);
+}
+
+#[test]
+fn unordered_collinear_points_input() {
+    let points: Vec<Point> = [10, 2, 4, 4, 1, 0, 3, 6, 8, 5, 7, 9]
+        .iter()
+        .map(|y| Point { x: 0.0, y: *y as f64 })
+        .collect();
+    let duplicated = 1;
+
+    let Triangulation {
+        triangles,
+        halfedges,
+        hull,
+    } = triangulate(&points);
+
+    assert!(triangles.is_empty(), "Expected no triangles (unordered collinear points)");
+    assert!(halfedges.is_empty(), "Expected no edges (unordered collinear points)");
+    assert!(hull.len() == points.len() - duplicated, "Expected all non-coincident points on hull (unordered collinear points)");
+    assert!(hull.iter().enumerate().all(|(i, v)| points[*v].y == (i as f64)), "Expected ordered hull points (unordered collinear points)");
 }
 
 fn scale_points(points: &[Point], scale: f64) -> Vec<Point> {
@@ -76,7 +121,7 @@ fn validate(points: &[Point]) {
         triangles,
         halfedges,
         hull,
-    } = triangulate(&points).expect("No triangulation exists for this input");
+    } = triangulate(&points);
 
     // validate halfedges
     for (i, &h) in halfedges.iter().enumerate() {
