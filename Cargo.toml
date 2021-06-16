@@ -25,3 +25,11 @@ bench = false
 [[bench]]
 name = "bench"
 harness = false
+
+[[example]]
+name = "triangulate"
+path = "examples/triangulate.rs"
+
+[[example]]
+name = "svg"
+path = "examples/svg.rs"
