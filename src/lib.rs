@@ -20,6 +20,7 @@ println!("{:?}", result.triangles); // [0, 2, 1, 0, 3, 2]
 */
 
 use std::{f64, fmt};
+use robust::orient2d;
 
 /// Near-duplicate points (where both `x` and `y` only differ within this value)
 /// will not be included in the triangulation for robustness.
@@ -38,6 +39,15 @@ impl fmt::Debug for Point {
     }
 }
 
+impl Into<robust::Coord<f64>> for &Point {
+    fn into(self) -> robust::Coord<f64> {
+        robust::Coord::<f64> {
+            x: self.x,
+            y: self.y,
+        }
+    }
+}
+
 impl Point {
     fn dist2(&self, p: &Self) -> f64 {
         let dx = self.x - p.x;
@@ -45,8 +55,8 @@ impl Point {
         dx * dx + dy * dy
     }
 
-    fn orient(&self, q: &Self, r: &Self) -> bool {
-        (q.y - self.y) * (r.x - q.x) - (q.x - self.x) * (r.y - q.y) < 0.0
+    fn orient(&self, q: &Self, r: &Self) -> f64 {
+        orient2d(self.into(), q.into(), r.into())
     }
 
     fn circumdelta(&self, b: &Self, c: &Self) -> (f64, f64) {
@@ -338,7 +348,7 @@ impl Hull {
         start = self.prev[start];
         let mut e = start;
 
-        while !p.orient(&points[e], &points[self.next[e]]) {
+        while p.orient(&points[e], &points[self.next[e]]) <= 0. {
             e = self.next[e];
             if e == start {
                 return (EMPTY, false);
@@ -410,7 +420,7 @@ fn find_seed_triangle(points: &[Point]) -> Option<(usize, usize, usize)> {
         None
     } else {
         // swap the order of the seed points for counter-clockwise orientation
-        Some(if p0.orient(p1, &points[i2]) {
+        Some(if p0.orient(p1, &points[i2]) > 0. {
             (i0, i2, i1)
         } else {
             (i0, i1, i2)
@@ -507,7 +517,7 @@ pub fn triangulate(points: &[Point]) -> Triangulation {
         let mut n = hull.next[e];
         loop {
             let q = hull.next[n];
-            if !p.orient(&points[n], &points[q]) {
+            if p.orient(&points[n], &points[q]) < 0. {
                 break;
             }
             let t = triangulation.add_triangle(n, i, q, hull.tri[i], EMPTY, hull.tri[n]);
@@ -520,7 +530,7 @@ pub fn triangulate(points: &[Point]) -> Triangulation {
         if walk_back {
             loop {
                 let q = hull.prev[e];
-                if !p.orient(&points[q], &points[e]) {
+                if p.orient(&points[q], &points[e]) < 0. {
                     break;
                 }
                 let t = triangulation.add_triangle(q, i, e, EMPTY, hull.tri[e], hull.tri[q]);

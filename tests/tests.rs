@@ -26,6 +26,8 @@ fn robustness() {
 
     validate(&load_fixture("tests/fixtures/robust2.json"));
     validate(&load_fixture("tests/fixtures/robust3.json"));
+    validate(&load_fixture("tests/fixtures/robust4.json"));
+    validate(&load_fixture("tests/fixtures/robust5.json"));
 }
 
 #[test]
