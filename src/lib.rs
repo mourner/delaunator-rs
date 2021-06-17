@@ -131,6 +131,7 @@ pub fn prev_halfedge(i: usize) -> usize {
 }
 
 /// Result of the Delaunay triangulation.
+#[derive(Debug, Clone)]
 pub struct Triangulation {
     /// A vector of point indices where each triple represents a Delaunay triangle.
     /// All triangles are directed counter-clockwise.

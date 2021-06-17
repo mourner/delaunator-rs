@@ -1,36 +1,62 @@
-use std::io::Write;
-use delaunator::{Point, next_halfedge};
+use std::{env, fs::File, io::Write};
+use delaunator::{EMPTY, Point, Triangulation, next_halfedge};
+const CANVAS_SIZE: f64 = 800.;
+const POINT_SIZE: usize = 4;
+const LINE_WIDTH: usize = 1;
+const HULL_COLOR: &str = "green";
+const LINE_COLOR: &str = "blue";
+const POINT_COLOR: &str = "black";
+const HULL_POINT_COLOR: &str = "red";
 
+/// Finds the center point and farthest point from it, then generates a new vector of
+/// scaled and offset points such that they fit between [0..SIZE]
+fn center_and_scale(points: &Vec<Point>, t: &Triangulation) -> Vec<Point> {
+    let center = &points[*t.triangles.get(0).unwrap_or(&0)];
+    let farthest_distance = points.iter().map(|p| {
+        let (x, y) = (center.x - p.x, center.y - p.y);
+        x*x + y*y
+    }).reduce(f64::max).unwrap().sqrt();
+    let scale = CANVAS_SIZE / (farthest_distance * 2.0);
+    let offset = ((CANVAS_SIZE / 2.0) - (scale * center.x), (CANVAS_SIZE / 2.0) - (scale * center.y));
+    points.iter().map(|p| Point { x: scale * p.x + offset.0, y: scale * p.y + offset.1 }).collect()
+}
+
+/// Takes the first argument and use as path to load points data. If no argument provided, loads one of the test fixtures data file
+/// Example: cargo run --example svg -- tests/fixtures/issue24.json
 fn main() -> std::io::Result<()> {
-    const POINT_SIZE: usize = 4;
-    const LINE_WIDTH: usize = 1;
-    const SCALE: f64 = 70.;
-    const OFFSET: (f64, f64) = (350., -350.);
+    // load points from file
+    let default_path = "tests/fixtures/robust4.json".to_string();
+    let args = env::args().collect::<Vec<String>>();
+    let path = args.get(1).unwrap_or(&default_path);
+    let points: Vec<Point> = serde_json::from_reader::<_, Vec<(f64, f64)>>(File::open(path)?)?
+        .iter().map(|p| Point { x: p.0, y: p.1 }).collect();
 
-    let points: Vec<_> = [[-3.0381276552207055, 10.481881920449052], [-2.1931270567413446, 11.016647278872279], [-1.3481264582619854, 11.551412637295508], [-0.5031258597826245, 12.086177995718735], [0.3418747386967347, 12.620943354141964], [1.1868753371760938, 13.155708712565193], [-2.5033622967974765, 9.63688132196969], [-1.6583616983181173, 10.171646680392918], [-0.8133610998387582, 10.706412038816147], [0.03163949864060278, 11.241177397239376], [0.8766400971199619, 11.775942755662605], [1.721640695599322, 12.310708114085832], [-1.9685969383742474, 8.791880723490332], [-1.1235963398948883, 9.326646081913559], [-0.2785957414155291, 9.861411440336788], [0.5664048570638318, 10.396176798760017], [1.411405455543191, 10.930942157183246], [2.25640605402255, 11.465707515606473], [-1.4338315799510184, 7.9468801250109715], [-0.5888309814716592, 8.4816454834342], [0.2561696170076999, 9.016410841857429], [1.10117021548706, 9.551176200280658], [1.94617081396642, 10.085941558703885], [2.791171412445779, 10.620706917127112], [-0.8990662215277911, 7.1018795265316115], [-0.05406562304843021, 7.6366448849548405], [0.7909349754309281, 8.17141024337807], [1.635935573910288, 8.706175601801297], [2.4809361723896473, 9.240940960224526], [3.3259367708690073, 9.775706318647753], [-0.3643008631045621, 6.256878928052252], [0.48069973537479704, 6.7916442864754805], [1.3257003338541562, 7.326409644898709], [2.1707009323335162, 7.861175003321938], [3.0157015308128763, 8.395940361745165], [3.8607021292922354, 8.930705720168394]]
-        .iter().map(|p| Point { x: p[0], y: p[1] }).collect();
-    let t = delaunator::triangulate(&points);
+    // triangulate and scale points for display
+    let triangulation = delaunator::triangulate(&points);
+    let points = center_and_scale(&points, &triangulation);
 
-    // scale / offset points for display
-    let points: Vec<_> = points.iter().map(|p| Point { x: SCALE * p.x + OFFSET.0, y: SCALE * p.y + OFFSET.1 }).collect();
-
+    // generate SVG
     let contents = format!(
         r#"
-<svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 {width} {height}" xmlns="http://www.w3.org/2000/svg">
 <rect width="100%" height="100%" fill="white" />
     {circles}
     {lines}
 </svg>"#,
-        circles = points.iter().enumerate().fold(String::new(), |acc, (i, p)| acc + &format!(r#"<circle cx="{x}" cy="{y}" r="{size}" fill="{color}"/>"#, x = p.x, y = p.y, size = POINT_SIZE, color = if t.hull.contains(&i) { "red" } else { "black" })),
-        lines = (0..t.triangles.len()).fold(String::new(), |acc, e| {
-            if e > t.halfedges[e] {
-                let start = &points[t.triangles[e]];
-                let end = &points[t.triangles[next_halfedge(e)]];
-                acc + &format!(r#"<line x1="{x0}" y1="{y0}" x2="{x1}" y2="{y1}" style="stroke:rgb(0,0,255);stroke-width:{width}" />"#, x0 = start.x, y0 = start.y, x1=end.x, y1=end.y, width = LINE_WIDTH)
+        width = CANVAS_SIZE,
+        height = CANVAS_SIZE,
+        circles = points.iter().enumerate().fold(String::new(), |acc, (i, p)| acc + &format!(r#"<circle cx="{x}" cy="{y}" r="{size}" fill="{color}"/>"#, x = p.x, y = p.y, size = POINT_SIZE, color = if triangulation.hull.contains(&i) { HULL_POINT_COLOR } else { POINT_COLOR })),
+        lines = (0..triangulation.triangles.len()).fold(String::new(), |acc, e| {
+            if e > triangulation.halfedges[e] || triangulation.halfedges[e] == EMPTY {
+                let start = &points[triangulation.triangles[e]];
+                let end = &points[triangulation.triangles[next_halfedge(e)]];
+                let color = if triangulation.halfedges[e] == EMPTY { HULL_COLOR } else { LINE_COLOR };
+                acc + &format!(r#"<line x1="{x0}" y1="{y0}" x2="{x1}" y2="{y1}" style="stroke:{color};stroke-width:{width}" />"#, x0 = start.x, y0 = start.y, x1=end.x, y1=end.y, width = LINE_WIDTH, color = color)
             } else {
                 acc
             }
         })
     );
-    std::fs::File::create("triangulation.svg")?.write_all(contents.as_bytes())
+    File::create("triangulation.svg")?
+        .write_all(contents.as_bytes())
 }
