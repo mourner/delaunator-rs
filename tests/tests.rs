@@ -19,18 +19,17 @@ fn basic() {
     validate(&load_fixture("tests/fixtures/basic.json"));
 }
 
-#[test]
-fn js_issues() {
-    validate(&load_fixture("tests/fixtures/issue11.json"));
-    validate(&load_fixture("tests/fixtures/issue13.json"));
-    validate(&load_fixture("tests/fixtures/issue24.json"));
-}
-
 test_fixture!(robust2);
 test_fixture!(robust3);
 test_fixture!(robust4);
 test_fixture!(robust5);
 test_fixture!(robust6);
+test_fixture!(issue10);
+
+// issues from JS repo
+test_fixture!(issue11js);
+test_fixture!(issue13js);
+test_fixture!(issue24js);
 
 #[test]
 fn robustness() {
