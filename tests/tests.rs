@@ -25,11 +25,13 @@ test_fixture!(robust4);
 test_fixture!(robust5);
 test_fixture!(robust6);
 test_fixture!(issue10);
+test_fixture!(ukraine);
 
 // issues from JS repo
 test_fixture!(issue11js);
 test_fixture!(issue13js);
 test_fixture!(issue24js);
+test_fixture!(issue43js);
 
 #[test]
 fn robustness() {
