@@ -8,19 +8,6 @@ const LINE_COLOR: &str = "blue";
 const POINT_COLOR: &str = "black";
 const HULL_POINT_COLOR: &str = "red";
 
-/// Finds the center point and farthest point from it, then generates a new vector of
-/// scaled and offset points such that they fit between [0..SIZE]
-fn center_and_scale(points: &Vec<Point>, t: &Triangulation) -> Vec<Point> {
-    let center = &points[*t.triangles.get(0).unwrap_or(&0)];
-    let farthest_distance = points.iter().map(|p| {
-        let (x, y) = (center.x - p.x, center.y - p.y);
-        x*x + y*y
-    }).reduce(f64::max).unwrap().sqrt();
-    let scale = CANVAS_SIZE / (farthest_distance * 2.0);
-    let offset = ((CANVAS_SIZE / 2.0) - (scale * center.x), (CANVAS_SIZE / 2.0) - (scale * center.y));
-    points.iter().map(|p| Point { x: scale * p.x + offset.0, y: scale * p.y + offset.1 }).collect()
-}
-
 /// Takes the first argument and use as path to load points data. If no argument provided, loads one of the test fixtures data file
 /// Example: cargo run --example svg -- tests/fixtures/issue24.json
 fn main() -> std::io::Result<()> {
@@ -33,6 +20,7 @@ fn main() -> std::io::Result<()> {
 
     // triangulate and scale points for display
     let triangulation = delaunator::triangulate(&points);
+    println!("{:#?}", triangulation);
     let points = center_and_scale(&points, &triangulation);
 
     // generate SVG
@@ -45,7 +33,7 @@ fn main() -> std::io::Result<()> {
 </svg>"#,
         width = CANVAS_SIZE,
         height = CANVAS_SIZE,
-        circles = points.iter().enumerate().fold(String::new(), |acc, (i, p)| acc + &format!(r#"<circle cx="{x}" cy="{y}" r="{size}" fill="{color}"/>"#, x = p.x, y = p.y, size = POINT_SIZE, color = if triangulation.hull.contains(&i) { HULL_POINT_COLOR } else { POINT_COLOR })),
+        circles = render_point(&points, &triangulation),
         lines = (0..triangulation.triangles.len()).fold(String::new(), |acc, e| {
             if e > triangulation.halfedges[e] || triangulation.halfedges[e] == EMPTY {
                 let start = &points[triangulation.triangles[e]];
@@ -59,4 +47,35 @@ fn main() -> std::io::Result<()> {
     );
     File::create("triangulation.svg")?
         .write_all(contents.as_bytes())
+}
+
+
+/// Finds the center point and farthest point from it, then generates a new vector of
+/// scaled and offset points such that they fit between [0..SIZE]
+fn center_and_scale(points: &Vec<Point>, t: &Triangulation) -> Vec<Point> {
+    let center = &points[*t.triangles.get(0).unwrap_or(&0)];
+    let farthest_distance = points.iter().map(|p| {
+        let (x, y) = (center.x - p.x, center.y - p.y);
+        x*x + y*y
+    }).reduce(f64::max).unwrap().sqrt();
+    let scale = CANVAS_SIZE / (farthest_distance * 2.0);
+    let offset = ((CANVAS_SIZE / 2.0) - (scale * center.x), (CANVAS_SIZE / 2.0) - (scale * center.y));
+    points.iter().map(|p| Point { x: scale * p.x + offset.0, y: scale * p.y + offset.1 }).collect()
+}
+
+
+fn render_point(points: &[Point], triangulation: &Triangulation) -> String {
+    let mut circles = points.iter().enumerate().fold(String::new(), |acc, (i, p)| {
+        let color = if triangulation.hull.contains(&i) { HULL_POINT_COLOR } else { POINT_COLOR };
+        acc + &format!(r#"<circle cx="{x}" cy="{y}" r="{size}" fill="{color}"/>"#, x = p.x, y = p.y, size = POINT_SIZE, color = color)
+    });
+
+    // show ids for points if input is relatively small
+    if points.len() < 100 {
+        circles = points.iter().enumerate().fold(circles, |acc, (i, p)| {
+            acc + &format!(r#"<text x="{x}" y="{y}" font-size="20" fill="black">{i}</text>"#, i = i, x = p.x + 10., y = p.y - 5.)
+        })
+    }
+
+    circles
 }

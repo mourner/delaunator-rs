@@ -1,4 +1,3 @@
-use delaunator::next_halfedge;
 use delaunator::{triangulate, Point, Triangulation, EMPTY, EPSILON};
 use std::f64;
 use std::fs::File;
