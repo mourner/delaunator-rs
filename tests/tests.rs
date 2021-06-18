@@ -2,17 +2,35 @@ use delaunator::{triangulate, Point, Triangulation, EMPTY, EPSILON};
 use std::f64;
 use std::fs::File;
 
+macro_rules! test_fixture {
+    ($fixture_name:ident) => {
+        #[test]
+        fn $fixture_name() {
+            let path = format!("tests/fixtures/{}.json", stringify!($fixture_name));
+            let points = load_fixture(&path);
+            validate(&points);
+        }
+    };
+}
+
 #[test]
 fn basic() {
     validate(&load_fixture("tests/fixtures/basic.json"));
 }
 
-#[test]
-fn js_issues() {
-    validate(&load_fixture("tests/fixtures/issue11.json"));
-    validate(&load_fixture("tests/fixtures/issue13.json"));
-    validate(&load_fixture("tests/fixtures/issue24.json"));
-}
+test_fixture!(robust2);
+test_fixture!(robust3);
+test_fixture!(robust4);
+test_fixture!(robust5);
+test_fixture!(robust6);
+test_fixture!(issue10);
+test_fixture!(ukraine);
+
+// issues from JS repo
+test_fixture!(issue11js);
+test_fixture!(issue13js);
+test_fixture!(issue24js);
+test_fixture!(issue43js);
 
 #[test]
 fn robustness() {
@@ -23,9 +41,6 @@ fn robustness() {
     validate(&(scale_points(&points, 1e-2)));
     validate(&(scale_points(&points, 100.0)));
     validate(&(scale_points(&points, 1e9)));
-
-    validate(&load_fixture("tests/fixtures/robust2.json"));
-    validate(&load_fixture("tests/fixtures/robust3.json"));
 }
 
 #[test]
@@ -129,6 +144,17 @@ fn validate(points: &[Point]) {
             panic!("Invalid halfedge connection");
         }
     }
+
+    // Currently failing for several fixtures: https://github.com/mourner/delaunator-rs/issues/18
+    // validate connectivity
+    // let mut seen = vec![false; points.len()];
+    // for &i in triangles.iter() {
+    //     seen[i] = true;
+    //     seen[triangles[next_halfedge(i)]] = true;
+    //     seen[triangles[next_halfedge(next_halfedge(i))]] = true;
+    // }
+    // let not_visited = seen.iter().enumerate().filter(|(_, visited)| !**visited).map(|(i,_)| i).collect::<Vec<usize>>();
+    // assert_eq!(not_visited.len(), 0, "The following points are not part of the triangulation: {:#?}", not_visited);
 
     // validate triangulation
     let hull_area = {

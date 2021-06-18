@@ -20,7 +20,7 @@ let points = vec![
     Point { x: 0., y: 1. },
 ];
 
-let result = triangulate(&points).expect("No triangulation exists.");
+let result = triangulate(&points);
 
 println!("{:?}", result.triangles); // [0, 2, 1, 0, 3, 2]
 ```

@@ -1,6 +1,3 @@
-extern crate delaunator;
-extern crate rand;
-
 use std::iter::repeat_with;
 
 const N: usize = 1_000_000;
