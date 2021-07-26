@@ -19,7 +19,12 @@ println!("{:?}", result.triangles); // [0, 2, 1, 0, 3, 2]
 ```
 */
 
-use std::{f64, fmt};
+#![no_std]
+
+extern crate alloc;
+
+use core::{f64, fmt};
+use alloc::vec::Vec;
 
 /// Near-duplicate points (where both `x` and `y` only differ within this value)
 /// will not be included in the triangulation for robustness.
