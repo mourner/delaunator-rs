@@ -21,6 +21,7 @@ println!("{:?}", result.triangles); // [0, 2, 1, 0, 3, 2]
 
 #![no_std]
 
+#[macro_use]
 extern crate alloc;
 
 use core::{f64, fmt};
@@ -98,7 +99,7 @@ impl Point {
     }
 
     fn nearly_equals(&self, p: &Self) -> bool {
-        (self.x - p.x).abs() <= EPSILON && (self.y - p.y).abs() <= EPSILON
+        f64_abs(self.x - p.x) <= EPSILON && f64_abs(self.y - p.y) <= EPSILON
     }
 }
 
@@ -562,4 +563,11 @@ pub fn triangulate(points: &[Point]) -> Triangulation {
     triangulation.halfedges.shrink_to_fit();
 
     triangulation
+}
+
+#[inline]
+fn abs_f64(f: f64) -> f64 {
+    // IEEE standard specifies that the 64th bit of an f64 is the sign bit
+    const SIGN_BIT: u64 = 1 << 63;
+    f64::from_bits(f64::to_bits(f) & !SIGN_BIT)
 }
