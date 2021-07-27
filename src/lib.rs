@@ -566,7 +566,7 @@ pub fn triangulate(points: &[Point]) -> Triangulation {
 }
 
 #[inline]
-fn abs_f64(f: f64) -> f64 {
+fn f64_abs(f: f64) -> f64 {
     // IEEE standard specifies that the 64th bit of an f64 is the sign bit
     const SIGN_BIT: u64 = 1 << 63;
     f64::from_bits(f64::to_bits(f) & !SIGN_BIT)
