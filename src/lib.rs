@@ -21,6 +21,12 @@ println!("{:?}", result.triangles); // [0, 2, 1, 0, 3, 2]
 
 #![no_std]
 
+#[cfg(not(feature = "std"))]
+use micromath::F32Ext;
+
+#[cfg(feature = "std")]
+extern crate std;
+
 #[macro_use]
 extern crate alloc;
 
@@ -286,7 +292,7 @@ struct Hull {
 
 impl Hull {
     fn new(n: usize, center: Point, i0: usize, i1: usize, i2: usize, points: &[Point]) -> Self {
-        let hash_len = (n as f64).sqrt() as usize;
+        let hash_len = f64_sqrt(n as f64) as usize;
 
         let mut hull = Self {
             prev: vec![0; n],            // edge to prev edge
@@ -319,11 +325,11 @@ impl Hull {
         let dx = p.x - self.center.x;
         let dy = p.y - self.center.y;
 
-        let p = dx / (dx.abs() + dy.abs());
+        let p = dx / (f64_abs(dx) + f64_abs(dy));
         let a = (if dy > 0.0 { 3.0 - p } else { 1.0 + p }) / 4.0; // [0..1]
 
         let len = self.hash.len();
-        (((len as f64) * a).floor() as usize) % len
+        (f64_floor((len as f64) * a) as usize) % len
     }
 
     fn hash_edge(&mut self, p: &Point, i: usize) {
@@ -567,7 +573,34 @@ pub fn triangulate(points: &[Point]) -> Triangulation {
 
 #[inline]
 fn f64_abs(f: f64) -> f64 {
-    // IEEE standard specifies that the 64th bit of an f64 is the sign bit
-    const SIGN_BIT: u64 = 1 << 63;
-    f64::from_bits(f64::to_bits(f) & !SIGN_BIT)
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "std")] {
+            f.abs()
+        } else {
+            const SIGN_BIT: u64 = 1 << 63;
+            f64::from_bits(f64::to_bits(f) & !SIGN_BIT)
+        }
+    }
+}
+
+#[inline]
+fn f64_floor(f: f64) -> f64 {
+    cfg_if::cfg_if! {
+         if #[cfg(feature = "std")] {
+            f.floor()
+        } else {
+            (f as f32).floor() as f64
+        }   
+    }
+}
+
+#[inline]
+fn f64_sqrt(f: f64) -> f64 {
+    cfg_if::cfg_if! {
+         if #[cfg(feature = "std")] {
+            f.sqrt()
+        } else {
+            (f as f32).sqrt() as f64
+        }   
+    }
 }
