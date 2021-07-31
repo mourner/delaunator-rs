@@ -571,36 +571,39 @@ pub fn triangulate(points: &[Point]) -> Triangulation {
     triangulation
 }
 
+#[cfg(feature = "std")]
 #[inline]
 fn f64_abs(f: f64) -> f64 {
-    cfg_if::cfg_if! {
-        if #[cfg(feature = "std")] {
-            f.abs()
-        } else {
-            const SIGN_BIT: u64 = 1 << 63;
-            f64::from_bits(f64::to_bits(f) & !SIGN_BIT)
-        }
-    }
+    f.abs()
 }
 
+#[cfg(not(feature = "std"))]
+#[inline]
+fn f64_abs(f: f64) -> f64 {
+    const SIGN_BIT: u64 = 1 << 63;
+    f64::from_bits(f64::to_bits(f) & !SIGN_BIT)
+}
+
+#[cfg(feature = "std")]
 #[inline]
 fn f64_floor(f: f64) -> f64 {
-    cfg_if::cfg_if! {
-         if #[cfg(feature = "std")] {
-            f.floor()
-        } else {
-            (f as f32).floor() as f64
-        }   
-    }
+    f.floor()
 }
 
+#[cfg(not(feature = "std"))]
+#[inline]
+fn f64_floor(f: f64) -> f64 {
+    (f as f32).floor() as f64
+}
+
+#[cfg(feature = "std")]
 #[inline]
 fn f64_sqrt(f: f64) -> f64 {
-    cfg_if::cfg_if! {
-         if #[cfg(feature = "std")] {
-            f.sqrt()
-        } else {
-            (f as f32).sqrt() as f64
-        }   
-    }
+    f.sqrt()
+}
+
+#[cfg(not(feature = "std"))]
+#[inline]
+fn f64_sqrt(f: f64) -> f64 {
+    (f as f32).sqrt() as f64
 }

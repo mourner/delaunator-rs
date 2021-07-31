@@ -12,7 +12,6 @@ keywords = ["delaunay", "triangulation", "tessellation", "spatial", "geometry"]
 authors = ["Vladimir Agafonkin <agafonkin@gmail.com>"]
 
 [dependencies]
-cfg-if = "1"
 micromath = "2"
 
 [dev-dependencies]
