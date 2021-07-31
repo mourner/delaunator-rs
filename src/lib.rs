@@ -21,9 +21,6 @@ println!("{:?}", result.triangles); // [0, 2, 1, 0, 3, 2]
 
 #![no_std]
 
-#[cfg(not(feature = "std"))]
-use micromath::F32Ext;
-
 #[cfg(feature = "std")]
 extern crate std;
 
@@ -593,7 +590,11 @@ fn f64_floor(f: f64) -> f64 {
 #[cfg(not(feature = "std"))]
 #[inline]
 fn f64_floor(f: f64) -> f64 {
-    (f as f32).floor() as f64
+    let mut res = (f as i64) as f64;
+    if res > f {
+        res -= 1.0;
+    }
+    res as f64
 }
 
 #[cfg(feature = "std")]
@@ -605,5 +606,14 @@ fn f64_sqrt(f: f64) -> f64 {
 #[cfg(not(feature = "std"))]
 #[inline]
 fn f64_sqrt(f: f64) -> f64 {
-    (f as f32).sqrt() as f64
+    if f < 2.0 { return f; };
+
+    let sc = f64_sqrt(f / 4.0) * 2.0;
+    let lc = sc + 1.0;
+    
+    if lc * lc > f {
+        sc
+    } else {
+        lc
+    }
 }

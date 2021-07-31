@@ -11,9 +11,6 @@ categories = ["algorithms", "data-structures"]
 keywords = ["delaunay", "triangulation", "tessellation", "spatial", "geometry"]
 authors = ["Vladimir Agafonkin <agafonkin@gmail.com>"]
 
-[dependencies]
-micromath = "2"
-
 [dev-dependencies]
 criterion = "0.3.4"
 rand = "0.8.3"
