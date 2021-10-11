@@ -155,17 +155,6 @@ fn validate(points: &[Point]) {
         }
     }
 
-    // Currently failing for several fixtures: https://github.com/mourner/delaunator-rs/issues/18
-    // validate connectivity
-    // let mut seen = vec![false; points.len()];
-    // for &i in triangles.iter() {
-    //     seen[i] = true;
-    //     seen[triangles[next_halfedge(i)]] = true;
-    //     seen[triangles[next_halfedge(next_halfedge(i))]] = true;
-    // }
-    // let not_visited = seen.iter().enumerate().filter(|(_, visited)| !**visited).map(|(i,_)| i).collect::<Vec<usize>>();
-    // assert_eq!(not_visited.len(), 0, "The following points are not part of the triangulation: {:#?}", not_visited);
-
     // validate triangulation
     let hull_area = {
         let mut hull_areas = Vec::new();
