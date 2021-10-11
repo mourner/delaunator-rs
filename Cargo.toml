@@ -11,6 +11,9 @@ categories = ["algorithms", "data-structures"]
 keywords = ["delaunay", "triangulation", "tessellation", "spatial", "geometry"]
 authors = ["Vladimir Agafonkin <agafonkin@gmail.com>"]
 
+[dependencies]
+robust = "0.2.3"
+
 [dev-dependencies]
 criterion = "0.3.4"
 rand = "0.8.3"
@@ -26,3 +29,11 @@ bench = false
 [[bench]]
 name = "bench"
 harness = false
+
+[[example]]
+name = "triangulate"
+path = "examples/triangulate.rs"
+
+[[example]]
+name = "svg"
+path = "examples/svg.rs"

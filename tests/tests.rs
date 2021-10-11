@@ -2,17 +2,37 @@ use delaunator::{triangulate, Point, Triangulation, EMPTY, EPSILON};
 use std::f64;
 use std::fs::File;
 
+macro_rules! test_fixture {
+    ($fixture_name:ident) => {
+        #[test]
+        fn $fixture_name() {
+            let path = format!("tests/fixtures/{}.json", stringify!($fixture_name));
+            let points = load_fixture(&path);
+            validate(&points);
+        }
+    };
+}
+
 #[test]
 fn basic() {
     validate(&load_fixture("tests/fixtures/basic.json"));
 }
 
-#[test]
-fn js_issues() {
-    validate(&load_fixture("tests/fixtures/issue11.json"));
-    validate(&load_fixture("tests/fixtures/issue13.json"));
-    validate(&load_fixture("tests/fixtures/issue24.json"));
-}
+test_fixture!(robust2);
+test_fixture!(robust3);
+test_fixture!(robust4);
+test_fixture!(robust5);
+test_fixture!(robust6);
+test_fixture!(issue10);
+test_fixture!(ukraine);
+test_fixture!(grid);
+
+// issues from JS repo
+test_fixture!(issue11js);
+test_fixture!(issue13js);
+test_fixture!(issue24js);
+test_fixture!(issue43js);
+test_fixture!(issue44js);
 
 #[test]
 fn robustness() {
@@ -23,9 +43,6 @@ fn robustness() {
     validate(&(scale_points(&points, 1e-2)));
     validate(&(scale_points(&points, 100.0)));
     validate(&(scale_points(&points, 1e9)));
-
-    validate(&load_fixture("tests/fixtures/robust2.json"));
-    validate(&load_fixture("tests/fixtures/robust3.json"));
 }
 
 #[test]
@@ -116,6 +133,14 @@ fn load_fixture(path: &str) -> Vec<Point> {
     u.iter().map(|p| Point { x: p.0, y: p.1 }).collect()
 }
 
+fn orient(p: &Point, q: &Point, r: &Point) -> f64 {
+    robust::orient2d(p.into(), q.into(), r.into())
+}
+
+fn convex(r: &Point, q: &Point, p: &Point) -> bool {
+    orient(p, r, q) <= 0. || orient(r, q, p) <= 0. || orient(q, p, r) < 0.
+}
+
 fn validate(points: &[Point]) {
     let Triangulation {
         triangles,
@@ -138,6 +163,11 @@ fn validate(points: &[Point]) {
         while i < hull.len() {
             let p0 = &points[hull[j]];
             let p = &points[hull[i]];
+
+            if !convex(p0, &points[hull[(j + 1) % hull.len()]], &points[hull[(j + 3) % hull.len()]]) {
+                panic!("Hull is not convex at {}", j);
+            }
+
             hull_areas.push((p.x - p0.x) * (p.y + p0.y));
             j = i;
             i += 1;
