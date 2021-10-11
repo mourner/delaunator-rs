@@ -27,9 +27,9 @@ extern crate std;
 #[macro_use]
 extern crate alloc;
 
-use robust::orient2d;
-use core::{f64, fmt};
 use alloc::vec::Vec;
+use core::{f64, fmt};
+use robust::orient2d;
 
 /// Near-duplicate points (where both `x` and `y` only differ within this value)
 /// will not be included in the triangulation for robustness.
@@ -160,11 +160,7 @@ pub struct Triangulation {
 
 impl Triangulation {
     fn new(n: usize) -> Self {
-        let max_triangles = if n > 2 {
-            2 * n - 5
-        } else {
-            0
-        };
+        let max_triangles = if n > 2 { 2 * n - 5 } else { 0 };
 
         Self {
             triangles: Vec::with_capacity(max_triangles * 3),
@@ -481,7 +477,8 @@ pub fn triangulate(points: &[Point]) -> Triangulation {
     }
 
     let n = points.len();
-    let (i0, i1, i2) = seed_triangle.expect("At this stage, points are guaranteed to yeild a seed triangle");
+    let (i0, i1, i2) =
+        seed_triangle.expect("At this stage, points are guaranteed to yeild a seed triangle");
     let center = (&points[i0]).circumcenter(&points[i1], &points[i2]);
 
     let mut triangulation = Triangulation::new(n);
@@ -617,7 +614,9 @@ fn f64_sqrt(f: f64) -> f64 {
 #[cfg(not(feature = "std"))]
 #[inline]
 fn f64_sqrt(f: f64) -> f64 {
-    if f < 2.0 { return f; };
+    if f < 2.0 {
+        return f;
+    };
 
     let sc = f64_sqrt(f / 4.0) * 2.0;
     let lc = sc + 1.0;
