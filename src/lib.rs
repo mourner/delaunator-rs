@@ -19,8 +19,17 @@ println!("{:?}", result.triangles); // [0, 2, 1, 0, 3, 2]
 ```
 */
 
-use std::{f64, fmt};
+#![no_std]
+
+#[cfg(feature = "std")]
+extern crate std;
+
+#[macro_use]
+extern crate alloc;
+
 use robust::orient2d;
+use core::{f64, fmt};
+use alloc::vec::Vec;
 
 /// Near-duplicate points (where both `x` and `y` only differ within this value)
 /// will not be included in the triangulation for robustness.
@@ -103,7 +112,7 @@ impl Point {
     }
 
     fn nearly_equals(&self, p: &Self) -> bool {
-        (self.x - p.x).abs() <= EPSILON && (self.y - p.y).abs() <= EPSILON
+        f64_abs(self.x - p.x) <= EPSILON && f64_abs(self.y - p.y) <= EPSILON
     }
 }
 
@@ -291,7 +300,7 @@ struct Hull {
 
 impl Hull {
     fn new(n: usize, center: Point, i0: usize, i1: usize, i2: usize, points: &[Point]) -> Self {
-        let hash_len = (n as f64).sqrt() as usize;
+        let hash_len = f64_sqrt(n as f64) as usize;
 
         let mut hull = Self {
             prev: vec![0; n],            // edge to prev edge
@@ -324,11 +333,11 @@ impl Hull {
         let dx = p.x - self.center.x;
         let dy = p.y - self.center.y;
 
-        let p = dx / (dx.abs() + dy.abs());
+        let p = dx / (f64_abs(dx) + f64_abs(dy));
         let a = (if dy > 0.0 { 3.0 - p } else { 1.0 + p }) / 4.0; // [0..1]
 
         let len = self.hash.len();
-        (((len as f64) * a).floor() as usize) % len
+        (f64_floor((len as f64) * a) as usize) % len
     }
 
     fn hash_edge(&mut self, p: &Point, i: usize) {
@@ -568,4 +577,54 @@ pub fn triangulate(points: &[Point]) -> Triangulation {
     triangulation.halfedges.shrink_to_fit();
 
     triangulation
+}
+
+#[cfg(feature = "std")]
+#[inline]
+fn f64_abs(f: f64) -> f64 {
+    f.abs()
+}
+
+#[cfg(not(feature = "std"))]
+#[inline]
+fn f64_abs(f: f64) -> f64 {
+    const SIGN_BIT: u64 = 1 << 63;
+    f64::from_bits(f64::to_bits(f) & !SIGN_BIT)
+}
+
+#[cfg(feature = "std")]
+#[inline]
+fn f64_floor(f: f64) -> f64 {
+    f.floor()
+}
+
+#[cfg(not(feature = "std"))]
+#[inline]
+fn f64_floor(f: f64) -> f64 {
+    let mut res = (f as i64) as f64;
+    if res > f {
+        res -= 1.0;
+    }
+    res as f64
+}
+
+#[cfg(feature = "std")]
+#[inline]
+fn f64_sqrt(f: f64) -> f64 {
+    f.sqrt()
+}
+
+#[cfg(not(feature = "std"))]
+#[inline]
+fn f64_sqrt(f: f64) -> f64 {
+    if f < 2.0 { return f; };
+
+    let sc = f64_sqrt(f / 4.0) * 2.0;
+    let lc = sc + 1.0;
+
+    if lc * lc > f {
+        sc
+    } else {
+        lc
+    }
 }
