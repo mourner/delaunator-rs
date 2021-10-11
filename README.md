@@ -1,10 +1,8 @@
 # delaunator-rs
 
-A very fast static 2D [Delaunay triangulation](https://en.wikipedia.org/wiki/Delaunay_triangulation) library for Rust.
-A port of [Delaunator](https://github.com/mapbox/delaunator).
+An incredibly fast and robust Rust library for [Delaunay triangulation](https://en.wikipedia.org/wiki/Delaunay_triangulation) of 2D points. A port of [Delaunator](https://github.com/mapbox/delaunator).
 
-[![delaunator on Crates.io](https://meritbadge.herokuapp.com/delaunator?1)](https://crates.io/crates/delaunator)
-[![Build Status](https://travis-ci.com/mourner/delaunator-rs.svg?branch=master)](https://travis-ci.com/mourner/delaunator-rs)
+[![delaunator on Crates.io](https://img.shields.io/crates/v/delaunator.svg)](https://crates.io/crates/delaunator)
 
 ## [Documentation](https://docs.rs/delaunator)
 
