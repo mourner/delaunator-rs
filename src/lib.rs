@@ -51,10 +51,7 @@ impl fmt::Debug for Point {
 
 impl From<&Point> for robust::Coord<f64> {
     fn from(p: &Point) -> robust::Coord<f64> {
-        robust::Coord::<f64> {
-            x: p.x,
-            y: p.y,
-        }
+        robust::Coord::<f64> { x: p.x, y: p.y }
     }
 }
 
