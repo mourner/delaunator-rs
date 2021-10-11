@@ -20,6 +20,7 @@ println!("{:?}", result.triangles); // [0, 2, 1, 0, 3, 2]
 */
 
 #![no_std]
+#![allow(clippy::many_single_char_names)]
 
 #[cfg(feature = "std")]
 extern crate std;
@@ -48,11 +49,11 @@ impl fmt::Debug for Point {
     }
 }
 
-impl Into<robust::Coord<f64>> for &Point {
-    fn into(self) -> robust::Coord<f64> {
+impl From<&Point> for robust::Coord<f64> {
+    fn from(p: &Point) -> robust::Coord<f64> {
         robust::Coord::<f64> {
-            x: self.x,
-            y: self.y,
+            x: p.x,
+            y: p.y,
         }
     }
 }
@@ -172,6 +173,10 @@ impl Triangulation {
     /// The number of triangles in the triangulation.
     pub fn len(&self) -> usize {
         self.triangles.len() / 3
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.triangles.is_empty()
     }
 
     fn add_triangle(
