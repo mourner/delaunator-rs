@@ -25,6 +25,7 @@ test_fixture!(robust5);
 test_fixture!(robust6);
 test_fixture!(issue10);
 test_fixture!(ukraine);
+test_fixture!(grid);
 
 // issues from JS repo
 test_fixture!(issue11js);
