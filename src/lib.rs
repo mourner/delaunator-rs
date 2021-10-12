@@ -20,6 +20,7 @@ println!("{:?}", result.triangles); // [0, 2, 1, 0, 3, 2]
 */
 
 #![no_std]
+#![allow(clippy::many_single_char_names)]
 
 #[cfg(feature = "std")]
 extern crate std;
@@ -27,9 +28,9 @@ extern crate std;
 #[macro_use]
 extern crate alloc;
 
-use robust::orient2d;
-use core::{f64, fmt};
 use alloc::vec::Vec;
+use core::{f64, fmt};
+use robust::orient2d;
 
 /// Near-duplicate points (where both `x` and `y` only differ within this value)
 /// will not be included in the triangulation for robustness.
@@ -48,12 +49,9 @@ impl fmt::Debug for Point {
     }
 }
 
-impl Into<robust::Coord<f64>> for &Point {
-    fn into(self) -> robust::Coord<f64> {
-        robust::Coord::<f64> {
-            x: self.x,
-            y: self.y,
-        }
+impl From<&Point> for robust::Coord<f64> {
+    fn from(p: &Point) -> robust::Coord<f64> {
+        robust::Coord::<f64> { x: p.x, y: p.y }
     }
 }
 
@@ -160,11 +158,7 @@ pub struct Triangulation {
 
 impl Triangulation {
     fn new(n: usize) -> Self {
-        let max_triangles = if n > 2 {
-            2 * n - 5
-        } else {
-            0
-        };
+        let max_triangles = if n > 2 { 2 * n - 5 } else { 0 };
 
         Self {
             triangles: Vec::with_capacity(max_triangles * 3),
@@ -176,6 +170,10 @@ impl Triangulation {
     /// The number of triangles in the triangulation.
     pub fn len(&self) -> usize {
         self.triangles.len() / 3
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.triangles.is_empty()
     }
 
     fn add_triangle(
@@ -481,7 +479,8 @@ pub fn triangulate(points: &[Point]) -> Triangulation {
     }
 
     let n = points.len();
-    let (i0, i1, i2) = seed_triangle.expect("At this stage, points are guaranteed to yeild a seed triangle");
+    let (i0, i1, i2) =
+        seed_triangle.expect("At this stage, points are guaranteed to yeild a seed triangle");
     let center = (&points[i0]).circumcenter(&points[i1], &points[i2]);
 
     let mut triangulation = Triangulation::new(n);
@@ -617,7 +616,9 @@ fn f64_sqrt(f: f64) -> f64 {
 #[cfg(not(feature = "std"))]
 #[inline]
 fn f64_sqrt(f: f64) -> f64 {
-    if f < 2.0 { return f; };
+    if f < 2.0 {
+        return f;
+    };
 
     let sc = f64_sqrt(f / 4.0) * 2.0;
     let lc = sc + 1.0;

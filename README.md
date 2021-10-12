@@ -3,6 +3,7 @@
 An incredibly fast and robust Rust library for [Delaunay triangulation](https://en.wikipedia.org/wiki/Delaunay_triangulation) of 2D points. A port of [Delaunator](https://github.com/mapbox/delaunator).
 
 [![delaunator on Crates.io](https://img.shields.io/crates/v/delaunator.svg)](https://crates.io/crates/delaunator)
+[![Tests](https://github.com/mourner/delaunator-rs/actions/workflows/test.yml/badge.svg)](https://github.com/mourner/delaunator-rs/actions/workflows/test.yml)
 
 ## [Documentation](https://docs.rs/delaunator)
 

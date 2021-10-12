@@ -79,7 +79,10 @@ fn bad_input() {
     assert!(triangles.is_empty(), "Expected no triangles (2 points)");
     assert!(halfedges.is_empty(), "Expected no edges (2 points)");
     assert!(hull.len() == 2, "Expected two points on hull (2 point)");
-    assert!(hull.iter().enumerate().all(|(i, v)| i == *v), "Expected ordered hull points (2 point)");
+    assert!(
+        hull.iter().enumerate().all(|(i, v)| i == *v),
+        "Expected ordered hull points (2 point)"
+    );
 
     points.push(Point { x: 2., y: 0. });
     let Triangulation {
@@ -88,10 +91,22 @@ fn bad_input() {
         hull,
     } = triangulate(&points);
 
-    assert!(triangles.is_empty(), "Expected no triangles (3 collinear points)");
-    assert!(halfedges.is_empty(), "Expected no edges (3 collinear points)");
-    assert!(hull.len() == 3, "Expected three points on hull (3 collinear points)");
-    assert!(hull.iter().enumerate().all(|(i, v)| i == *v), "Expected ordered hull points (3 collinear points)");
+    assert!(
+        triangles.is_empty(),
+        "Expected no triangles (3 collinear points)"
+    );
+    assert!(
+        halfedges.is_empty(),
+        "Expected no edges (3 collinear points)"
+    );
+    assert!(
+        hull.len() == 3,
+        "Expected three points on hull (3 collinear points)"
+    );
+    assert!(
+        hull.iter().enumerate().all(|(i, v)| i == *v),
+        "Expected ordered hull points (3 collinear points)"
+    );
 
     points.push(Point { x: 1., y: 1. });
     validate(&points);
@@ -101,7 +116,10 @@ fn bad_input() {
 fn unordered_collinear_points_input() {
     let points: Vec<Point> = [10, 2, 4, 4, 1, 0, 3, 6, 8, 5, 7, 9]
         .iter()
-        .map(|y| Point { x: 0.0, y: *y as f64 })
+        .map(|y| Point {
+            x: 0.0,
+            y: *y as f64,
+        })
         .collect();
     let duplicated = 1;
 
@@ -111,10 +129,24 @@ fn unordered_collinear_points_input() {
         hull,
     } = triangulate(&points);
 
-    assert!(triangles.is_empty(), "Expected no triangles (unordered collinear points)");
-    assert!(halfedges.is_empty(), "Expected no edges (unordered collinear points)");
-    assert!(hull.len() == points.len() - duplicated, "Expected all non-coincident points on hull (unordered collinear points)");
-    assert!(hull.iter().enumerate().all(|(i, v)| points[*v].y == (i as f64)), "Expected ordered hull points (unordered collinear points)");
+    assert!(
+        triangles.is_empty(),
+        "Expected no triangles (unordered collinear points)"
+    );
+    assert!(
+        halfedges.is_empty(),
+        "Expected no edges (unordered collinear points)"
+    );
+    assert!(
+        hull.len() == points.len() - duplicated,
+        "Expected all non-coincident points on hull (unordered collinear points)"
+    );
+    assert!(
+        hull.iter()
+            .enumerate()
+            .all(|(i, v)| points[*v].y == (i as f64)),
+        "Expected ordered hull points (unordered collinear points)"
+    );
 }
 
 fn scale_points(points: &[Point], scale: f64) -> Vec<Point> {
@@ -123,7 +155,8 @@ fn scale_points(points: &[Point], scale: f64) -> Vec<Point> {
         .map(|p| Point {
             x: p.x * scale,
             y: p.y * scale,
-        }).collect();
+        })
+        .collect();
     scaled
 }
 
@@ -164,7 +197,11 @@ fn validate(points: &[Point]) {
             let p0 = &points[hull[j]];
             let p = &points[hull[i]];
 
-            if !convex(p0, &points[hull[(j + 1) % hull.len()]], &points[hull[(j + 3) % hull.len()]]) {
+            if !convex(
+                p0,
+                &points[hull[(j + 1) % hull.len()]],
+                &points[hull[(j + 3) % hull.len()]],
+            ) {
                 panic!("Hull is not convex at {}", j);
             }
 
