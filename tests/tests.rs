@@ -149,6 +149,15 @@ fn unordered_collinear_points_input() {
     );
 }
 
+#[test]
+fn hull_collinear_issue24() {
+    let points = load_fixture("tests/fixtures/issue24.json");
+    validate(&points);
+
+    let t = triangulate(&points);
+    assert_eq!(t.hull, &[0, 3, 2, 1], "Invalid hull");
+}
+
 fn scale_points(points: &[Point], scale: f64) -> Vec<Point> {
     let scaled: Vec<Point> = points
         .iter()
@@ -170,8 +179,23 @@ fn orient(p: &Point, q: &Point, r: &Point) -> f64 {
     robust::orient2d(p.into(), q.into(), r.into())
 }
 
-fn convex(r: &Point, q: &Point, p: &Point) -> bool {
-    orient(p, r, q) <= 0. || orient(r, q, p) <= 0. || orient(q, p, r) < 0.
+/// make sure hull is convex and counter-clockwise (p1 is to the right of the directed line p0 --> p2)
+/// in case of collinear points, make sure they are ordered (p1 between p0 and p2)
+//  p-1                           p3
+//   \                           ^
+//    > p0 ---------------> p2 /
+//              p1
+fn assert_convex(p0: &Point, p1: &Point, p2: &Point) {
+    let l = orient(p0, p2, p1);
+    assert!(l >= 0., "p1 ({:?}) is to the left of the directed line p0 ({:?}) --> p2 ({:?}). Hull is not convex.", p1, p0, p2);
+
+    if l == 0. {
+        // if p0, p1 and p2 are collinear, they must be ordered
+        // that means that p1 - p0 = c * (p2 - p0), where c is (0..1) but not inclusive (linear combination)
+        let c = ((p1.x - p0.x) / (p2.x - p0.x)).max((p1.y - p0.y) / (p2.y - p0.y));
+        assert!(c > 0., "incorrect ordering, found p1, p0, p2, expected p0 ({:?}), p1 ({:?}), p2 ({:?}). Invalid hull.", p0, p1, p2);
+        assert!(c < 1., "incorrect ordering, found p0, p2, p1, expected p0 ({:?}), p1 ({:?}), p2 ({:?}). Invalid hull.", p0, p1, p2);
+    }
 }
 
 fn validate(points: &[Point]) {
@@ -191,24 +215,15 @@ fn validate(points: &[Point]) {
     // validate triangulation
     let hull_area = {
         let mut hull_areas = Vec::new();
-        let mut i = 0;
-        let mut j = hull.len() - 1;
-        while i < hull.len() {
-            let p0 = &points[hull[j]];
-            let p = &points[hull[i]];
 
-            if !convex(
-                p0,
-                &points[hull[(j + 1) % hull.len()]],
-                &points[hull[(j + 3) % hull.len()]],
-            ) {
-                panic!("Hull is not convex at {}", j);
-            }
-
-            hull_areas.push((p.x - p0.x) * (p.y + p0.y));
-            j = i;
-            i += 1;
+        for i in 0..hull.len() {
+            let p0 = &points[hull[i]];
+            let p1 = &points[hull[(i + 1) % hull.len()]];
+            let p2 = &points[hull[(i + 2) % hull.len()]];
+            assert_convex(p0, p1, p2);
+            hull_areas.push((p1.x - p0.x) * (p1.y + p0.y));
         }
+
         sum(&hull_areas)
     };
     let triangles_area = {
