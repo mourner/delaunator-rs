@@ -62,7 +62,11 @@ impl Point {
         dx * dx + dy * dy
     }
 
+    /// Returns a **negative** value if ```self```, ```q``` and ```r``` occur in counterclockwise order (```r``` is to the left of the directed line ```self``` --> ```q```)
+    /// Returns a **positive** value if they occur in clockwise order(```r``` is to the right of the directed line ```self``` --> ```q```)
+    /// Returns zero is they are collinear
     fn orient(&self, q: &Self, r: &Self) -> f64 {
+        // robust-rs orients Y-axis upwards, our convention is Y downwards. This means that the interpretation of the result must be flipped
         orient2d(self.into(), q.into(), r.into())
     }
 
@@ -526,7 +530,7 @@ pub fn triangulate(points: &[Point]) -> Triangulation {
         let mut n = hull.next[e];
         loop {
             let q = hull.next[n];
-            if p.orient(&points[n], &points[q]) < 0. {
+            if p.orient(&points[n], &points[q]) <= 0. {
                 break;
             }
             let t = triangulation.add_triangle(n, i, q, hull.tri[i], EMPTY, hull.tri[n]);
@@ -539,7 +543,7 @@ pub fn triangulate(points: &[Point]) -> Triangulation {
         if walk_back {
             loop {
                 let q = hull.prev[e];
-                if p.orient(&points[q], &points[e]) < 0. {
+                if p.orient(&points[q], &points[e]) <= 0. {
                     break;
                 }
                 let t = triangulation.add_triangle(q, i, e, EMPTY, hull.tri[e], hull.tri[q]);
