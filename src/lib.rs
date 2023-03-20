@@ -244,7 +244,7 @@ impl Triangulation {
         let pl = self.triangles[al];
         let p1 = self.triangles[bl];
 
-        let illegal = (&points[p0]).in_circle(&points[pr], &points[pl], &points[p1]);
+        let illegal = points[p0].in_circle(&points[pr], &points[pl], &points[p1]);
         if illegal {
             self.triangles[a] = p1;
             self.triangles[b] = p0;
@@ -485,7 +485,7 @@ pub fn triangulate(points: &[Point]) -> Triangulation {
     let n = points.len();
     let (i0, i1, i2) =
         seed_triangle.expect("At this stage, points are guaranteed to yeild a seed triangle");
-    let center = (&points[i0]).circumcenter(&points[i1], &points[i2]);
+    let center = points[i0].circumcenter(&points[i1], &points[i2]);
 
     let mut triangulation = Triangulation::new(n);
     triangulation.add_triangle(i0, i1, i2, EMPTY, EMPTY, EMPTY);
