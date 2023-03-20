@@ -158,6 +158,25 @@ fn hull_collinear_issue24() {
     assert_eq!(t.hull, &[0, 3, 2, 1], "Invalid hull");
 }
 
+#[test]
+/// The test ensures that even when an invalid sequence of points is passed, there is no panic. 
+/// In this test, the output does not matter as long as an output is returned.
+fn invalid_nan_sequence() {
+    let points = vec![
+        Point { x: -3.5, y: -1.5 },
+        Point {
+            x: f64::NAN,
+            y: f64::NAN,
+        },
+        Point {
+            x: f64::NAN,
+            y: f64::NAN,
+        },
+        Point { x: -3.5, y: -1.5 },
+    ];
+    triangulate(&points);
+}
+
 fn scale_points(points: &[Point], scale: f64) -> Vec<Point> {
     let scaled: Vec<Point> = points
         .iter()
