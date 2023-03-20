@@ -159,7 +159,7 @@ fn hull_collinear_issue24() {
 }
 
 #[test]
-/// The test ensures that even when an invalid sequence of points is passed, there is no panic. 
+/// The test ensures that even when an invalid sequence of points is passed, there is no panic.
 /// In this test, the output does not matter as long as an output is returned.
 fn invalid_nan_sequence() {
     let points = vec![

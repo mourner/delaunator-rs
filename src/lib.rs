@@ -29,7 +29,7 @@ extern crate std;
 extern crate alloc;
 
 use alloc::vec::Vec;
-use core::{f64, fmt, cmp::Ordering};
+use core::{cmp::Ordering, f64, fmt};
 use robust::orient2d;
 
 /// Near-duplicate points (where both `x` and `y` only differ within this value)
