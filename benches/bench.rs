@@ -4,7 +4,7 @@ extern crate criterion;
 extern crate delaunator;
 extern crate rand;
 
-use criterion::{AxisScale, Criterion, ParameterizedBenchmark, PlotConfiguration};
+use criterion::{AxisScale, Criterion, PlotConfiguration, BenchmarkId};
 use delaunator::{triangulate, Point};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use std::iter::repeat_with;
@@ -19,21 +19,15 @@ fn bench(c: &mut Criterion) {
         .take(*COUNTS.last().unwrap())
         .collect();
 
-    let bench = ParameterizedBenchmark::new(
-        "triangulate",
-        move |b, &&count| {
-            let points = &all_points[..count];
-            b.iter(move || triangulate(points))
-        },
-        COUNTS,
-    );
+    let mut group = c.benchmark_group("triangulate");
+    group.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
 
-    c.bench(
-        "triangulate",
-        bench
-            .sample_size(20) // override to a small sample size, otherwise it takes too long
-            .plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic)),
-    );
+    for count in COUNTS {
+        group.bench_with_input(BenchmarkId::from_parameter(count), count, |b, &count| {
+            let points = &all_points[..count];
+            b.iter(|| triangulate(points))
+        });
+    }
 }
 
 criterion_group!(benches, bench);
