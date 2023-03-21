@@ -4,7 +4,7 @@ extern crate criterion;
 extern crate delaunator;
 extern crate rand;
 
-use criterion::{AxisScale, Criterion, PlotConfiguration, BenchmarkId};
+use criterion::{AxisScale, BenchmarkId, Criterion, PlotConfiguration};
 use delaunator::{triangulate, Point};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use std::iter::repeat_with;
