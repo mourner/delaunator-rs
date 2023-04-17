@@ -29,7 +29,7 @@ extern crate std;
 extern crate alloc;
 
 use alloc::vec::Vec;
-use core::{cmp::Ordering, f64, fmt};
+use core::{cmp::Ordering, fmt};
 use robust::orient2d;
 
 /// Near-duplicate points (where both `x` and `y` only differ within this value)
@@ -121,7 +121,7 @@ impl Point {
 /// Represents the area outside of the triangulation.
 /// Halfedges on the convex hull (which don't have an adjacent halfedge)
 /// will have this value.
-pub const EMPTY: usize = usize::max_value();
+pub const EMPTY: usize = usize::MAX;
 
 /// Next halfedge in a triangle.
 pub fn next_halfedge(i: usize) -> usize {
