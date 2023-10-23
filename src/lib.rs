@@ -55,6 +55,30 @@ impl From<&Point> for robust::Coord<f64> {
     }
 }
 
+impl From<(f64, f64)> for Point {
+    fn from((x, y): (f64, f64)) -> Self {
+        Point { x, y }
+    }
+}
+
+impl From<[f64; 2]> for Point {
+    fn from([x, y]: [f64; 2]) -> Self {
+        Point { x, y }
+    }
+}
+
+impl From<Point> for (f64, f64) {
+    fn from(pt: Point) -> Self {
+        (pt.x, pt.y)
+    }
+}
+
+impl From<Point> for [f64; 2] {
+    fn from(pt: Point) -> Self {
+        [pt.x, pt.y]
+    }
+}
+
 impl Point {
     fn dist2(&self, p: &Self) -> f64 {
         let dx = self.x - p.x;
