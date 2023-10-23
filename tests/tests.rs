@@ -177,6 +177,18 @@ fn invalid_nan_sequence() {
     triangulate(&points);
 }
 
+#[test]
+/// The test demonstrates and validates our tuple and array round tripping of `Point`
+fn tuple_array_conv() {
+    // Tuple/Array --> Point
+    assert_eq!(Into::<Point>::into((1., 2.)), Point { x: 1., y: 2. });
+    assert_eq!(Into::<Point>::into([1., 2.]), Point { x: 1., y: 2. });
+
+    // Point --> Tuple/Array
+    assert_eq!(Into::<(f64, f64)>::into(Point { x: 1., y: 2. }), (1., 2.));
+    assert_eq!(Into::<[f64; 2]>::into(Point { x: 1., y: 2. }), [1., 2.]);
+}
+
 fn scale_points(points: &[Point], scale: f64) -> Vec<Point> {
     let scaled: Vec<Point> = points
         .iter()
