@@ -169,7 +169,9 @@ pub fn prev_halfedge(i: usize) -> usize {
 #[derive(Debug, Clone)]
 pub struct Triangulation {
     /// A vector of point indices where each triple represents a Delaunay triangle.
-    /// All triangles are directed counter-clockwise.
+    /// All triangles are directed counter-clockwise.  (Note that this
+    /// library assumes that the Y axis points downward contrarily to
+    /// the usual convention in mathematics.)
     pub triangles: Vec<usize>,
 
     /// A vector of adjacent halfedge indices that allows traversing the triangulation graph.
