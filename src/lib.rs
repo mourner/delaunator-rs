@@ -178,7 +178,7 @@ pub struct Triangulation {
     ///
     /// `i`-th half-edge in the array corresponds to vertex `triangles[i]`
     /// the half-edge is coming from. `halfedges[i]` is the index of a twin half-edge
-    /// in an adjacent triangle (or `EMPTY` for outer half-edges on the convex hull).
+    /// in an adjacent triangle (or [`EMPTY`] for outer half-edges on the convex hull).
     pub halfedges: Vec<usize>,
 
     /// A vector of indices that reference points on the convex hull of the triangulation,
