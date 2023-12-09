@@ -86,9 +86,12 @@ impl Point {
         dx * dx + dy * dy
     }
 
-    /// Returns a **negative** value if ```self```, ```q``` and ```r``` occur in counterclockwise order (```r``` is to the left of the directed line ```self``` --> ```q```)
-    /// Returns a **positive** value if they occur in clockwise order(```r``` is to the right of the directed line ```self``` --> ```q```)
-    /// Returns zero is they are collinear
+    /// Returns a **negative** value if `self`, `q` and `r` occur in
+    /// counterclockwise order (`r` is to the left of the directed
+    /// line `self` → `q`).
+    /// Returns a **positive** value if they occur in clockwise order
+    /// (`r` is to the right of the directed line `self` → `q`).
+    /// Returns zero is they are collinear.
     fn orient(&self, q: &Self, r: &Self) -> f64 {
         // robust-rs orients Y-axis upwards, our convention is Y downwards. This means that the interpretation of the result must be flipped
         orient2d(self.into(), q.into(), r.into())
