@@ -1,5 +1,5 @@
+use core::f64;
 use delaunator::{triangulate, Point, Triangulation, EMPTY, EPSILON};
-use std::f64;
 use std::fs::File;
 
 macro_rules! test_fixture {

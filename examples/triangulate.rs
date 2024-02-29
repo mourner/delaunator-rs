@@ -1,4 +1,4 @@
-use std::iter::repeat_with;
+use core::iter::repeat_with;
 
 const N: usize = 1_000_000;
 
