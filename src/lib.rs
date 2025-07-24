@@ -29,7 +29,7 @@ extern crate std;
 extern crate alloc;
 
 use alloc::vec::Vec;
-use core::{cmp::Ordering, fmt};
+use core::fmt;
 use robust::orient2d;
 
 /// Near-duplicate points (where both `x` and `y` only differ within this value)
@@ -465,7 +465,7 @@ fn find_seed_triangle(points: &[Point]) -> Option<(usize, usize, usize)> {
 }
 
 fn sortf(f: &mut [(usize, f64)]) {
-    f.sort_unstable_by(|&(_, da), &(_, db)| da.partial_cmp(&db).unwrap_or(Ordering::Equal));
+    f.sort_by(|(_, da), (_, db)| da.total_cmp(db));
 }
 
 /// Order collinear points by dx (or dy if all x are identical) and return the list as a hull
