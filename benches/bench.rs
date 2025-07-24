@@ -14,7 +14,7 @@ const COUNTS: &[usize] = &[100, 1000, 10_000, 100_000];
 fn bench(c: &mut Criterion) {
     let mut rng: StdRng = StdRng::seed_from_u64(123);
 
-    let all_points: Vec<_> = repeat_with(|| rng.gen())
+    let all_points: Vec<_> = repeat_with(|| rng.random())
         .map(|(x, y)| Point { x, y })
         .take(*COUNTS.last().unwrap())
         .collect();
