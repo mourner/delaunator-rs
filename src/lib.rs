@@ -36,11 +36,109 @@ use robust::orient2d;
 /// will not be included in the triangulation for robustness.
 pub const EPSILON: f64 = f64::EPSILON * 2.0;
 
+pub trait PointTrait: Copy + Into<robust::Coord<f64>> {
+    fn new(x: f64, y: f64) -> Self;
+
+    fn x(&self) -> f64;
+    fn y(&self) -> f64;
+
+    fn dist2(&self, p: &Self) -> f64 {
+        let dx = self.x() - p.x();
+        let dy = self.y() - p.y();
+        dx * dx + dy * dy
+    }
+
+    /// Returns a **negative** value if ```self```, ```q``` and ```r``` occur in counterclockwise order (```r``` is to the left of the directed line ```self``` --> ```q```)
+    /// Returns a **positive** value if they occur in clockwise order(```r``` is to the right of the directed line ```self``` --> ```q```)
+    /// Returns zero is they are collinear
+    fn orient(&self, q: &Self, r: &Self) -> f64 {
+        // robust-rs orients Y-axis upwards, our convention is Y downwards. This means that the interpretation of the result must be flipped
+        orient2d((*self).into(), (*q).into(), (*r).into())
+    }
+
+    fn circumdelta(&self, b: &Self, c: &Self) -> (f64, f64) {
+        let dx = b.x() - self.x();
+        let dy = b.y() - self.y();
+        let ex = c.x() - self.x();
+        let ey = c.y() - self.y();
+
+        let bl = dx * dx + dy * dy;
+        let cl = ex * ex + ey * ey;
+        let d = 0.5 / (dx * ey - dy * ex);
+
+        let x = (ey * bl - dy * cl) * d;
+        let y = (dx * cl - ex * bl) * d;
+        (x, y)
+    }
+
+    fn circumradius2(&self, b: &Self, c: &Self) -> f64 {
+        let (x, y) = self.circumdelta(b, c);
+        x * x + y * y
+    }
+
+    fn circumcenter(&self, b: &Self, c: &Self) -> Self {
+        let (x, y) = self.circumdelta(b, c);
+        Self::new(self.x() + x, self.y() + y)
+    }
+
+    fn in_circle(&self, b: &Self, c: &Self, p: &Self) -> bool {
+        let dx = self.x() - p.x();
+        let dy = self.y() - p.y();
+        let ex = b.x() - p.x();
+        let ey = b.y() - p.y();
+        let fx = c.x() - p.x();
+        let fy = c.y() - p.y();
+
+        let ap = dx * dx + dy * dy;
+        let bp = ex * ex + ey * ey;
+        let cp = fx * fx + fy * fy;
+
+        dx * (ey * cp - bp * fy) - dy * (ex * cp - bp * fx) + ap * (ex * fy - ey * fx) < 0.0
+    }
+
+    fn nearly_equals(&self, p: &Self) -> bool {
+        f64_abs(self.x() - p.x()) <= EPSILON && f64_abs(self.y() - p.y()) <= EPSILON
+    }
+}
+
+impl PointTrait for robust::Coord<f64> {
+    #[inline]
+    fn new(x: f64, y: f64) -> Self {
+        Self{x, y}
+    }
+
+    #[inline]
+    fn x(&self) -> f64 {
+        self.x
+    }
+
+    #[inline]
+    fn y(&self) -> f64 {
+        self.y
+    }
+}
+
 /// Represents a 2D point in the input vector.
-#[derive(Clone, PartialEq, Default)]
+#[derive(Clone, PartialEq, Default, Copy)]
 pub struct Point {
     pub x: f64,
     pub y: f64,
+}
+impl PointTrait for Point {
+    #[inline]
+    fn new(x: f64, y: f64) -> Self {
+        Self { x, y }
+    }
+
+    #[inline]
+    fn x(&self) -> f64 {
+        self.x
+    }
+
+    #[inline]
+    fn y(&self) -> f64 {
+        self.y
+    }
 }
 
 impl fmt::Debug for Point {
@@ -49,8 +147,8 @@ impl fmt::Debug for Point {
     }
 }
 
-impl From<&Point> for robust::Coord<f64> {
-    fn from(p: &Point) -> robust::Coord<f64> {
+impl From<Point> for robust::Coord<f64> {
+    fn from(p: Point) -> robust::Coord<f64> {
         robust::Coord::<f64> { x: p.x, y: p.y }
     }
 }
@@ -76,69 +174,6 @@ impl From<Point> for (f64, f64) {
 impl From<Point> for [f64; 2] {
     fn from(pt: Point) -> Self {
         [pt.x, pt.y]
-    }
-}
-
-impl Point {
-    fn dist2(&self, p: &Self) -> f64 {
-        let dx = self.x - p.x;
-        let dy = self.y - p.y;
-        dx * dx + dy * dy
-    }
-
-    /// Returns a **negative** value if ```self```, ```q``` and ```r``` occur in counterclockwise order (```r``` is to the left of the directed line ```self``` --> ```q```)
-    /// Returns a **positive** value if they occur in clockwise order(```r``` is to the right of the directed line ```self``` --> ```q```)
-    /// Returns zero is they are collinear
-    fn orient(&self, q: &Self, r: &Self) -> f64 {
-        // robust-rs orients Y-axis upwards, our convention is Y downwards. This means that the interpretation of the result must be flipped
-        orient2d(self.into(), q.into(), r.into())
-    }
-
-    fn circumdelta(&self, b: &Self, c: &Self) -> (f64, f64) {
-        let dx = b.x - self.x;
-        let dy = b.y - self.y;
-        let ex = c.x - self.x;
-        let ey = c.y - self.y;
-
-        let bl = dx * dx + dy * dy;
-        let cl = ex * ex + ey * ey;
-        let d = 0.5 / (dx * ey - dy * ex);
-
-        let x = (ey * bl - dy * cl) * d;
-        let y = (dx * cl - ex * bl) * d;
-        (x, y)
-    }
-
-    fn circumradius2(&self, b: &Self, c: &Self) -> f64 {
-        let (x, y) = self.circumdelta(b, c);
-        x * x + y * y
-    }
-
-    fn circumcenter(&self, b: &Self, c: &Self) -> Self {
-        let (x, y) = self.circumdelta(b, c);
-        Self {
-            x: self.x + x,
-            y: self.y + y,
-        }
-    }
-
-    fn in_circle(&self, b: &Self, c: &Self, p: &Self) -> bool {
-        let dx = self.x - p.x;
-        let dy = self.y - p.y;
-        let ex = b.x - p.x;
-        let ey = b.y - p.y;
-        let fx = c.x - p.x;
-        let fy = c.y - p.y;
-
-        let ap = dx * dx + dy * dy;
-        let bp = ex * ex + ey * ey;
-        let cp = fx * fx + fy * fy;
-
-        dx * (ey * cp - bp * fy) - dy * (ex * cp - bp * fx) + ap * (ex * fy - ey * fx) < 0.0
-    }
-
-    fn nearly_equals(&self, p: &Self) -> bool {
-        f64_abs(self.x - p.x) <= EPSILON && f64_abs(self.y - p.y) <= EPSILON
     }
 }
 
@@ -236,7 +271,7 @@ impl Triangulation {
         t
     }
 
-    fn legalize(&mut self, a: usize, points: &[Point], hull: &mut Hull) -> usize {
+    fn legalize<P: PointTrait>(&mut self, a: usize, points: &[P], hull: &mut Hull<P>) -> usize {
         let b = self.halfedges[a];
 
         // if the pair of triangles doesn't satisfy the Delaunay condition
@@ -315,17 +350,17 @@ impl Triangulation {
 }
 
 // data structure for tracking the edges of the advancing convex hull
-struct Hull {
+struct Hull<P: PointTrait> {
     prev: Vec<usize>,
     next: Vec<usize>,
     tri: Vec<usize>,
     hash: Vec<usize>,
     start: usize,
-    center: Point,
+    center: P,
 }
 
-impl Hull {
-    fn new(n: usize, center: Point, i0: usize, i1: usize, i2: usize, points: &[Point]) -> Self {
+impl<P: PointTrait> Hull<P> {
+    fn new(n: usize, center: P, i0: usize, i1: usize, i2: usize, points: &[P]) -> Self {
         let hash_len = f64_sqrt(n as f64) as usize;
 
         let mut hull = Self {
@@ -355,9 +390,9 @@ impl Hull {
         hull
     }
 
-    fn hash_key(&self, p: &Point) -> usize {
-        let dx = p.x - self.center.x;
-        let dy = p.y - self.center.y;
+    fn hash_key(&self, p: &P) -> usize {
+        let dx = p.x() - self.center.x();
+        let dy = p.y() - self.center.y();
 
         let p = dx / (f64_abs(dx) + f64_abs(dy));
         let a = (if dy > 0.0 { 3.0 - p } else { 1.0 + p }) / 4.0; // [0..1]
@@ -366,12 +401,12 @@ impl Hull {
         (f64_floor((len as f64) * a) as usize) % len
     }
 
-    fn hash_edge(&mut self, p: &Point, i: usize) {
+    fn hash_edge(&mut self, p: &P, i: usize) {
         let key = self.hash_key(p);
         self.hash[key] = i;
     }
 
-    fn find_visible_edge(&self, p: &Point, points: &[Point]) -> (usize, bool) {
+    fn find_visible_edge(&self, p: &P, points: &[P]) -> (usize, bool) {
         let mut start: usize = 0;
         let key = self.hash_key(p);
         let len = self.hash.len();
@@ -394,24 +429,24 @@ impl Hull {
     }
 }
 
-fn calc_bbox_center(points: &[Point]) -> Point {
+fn calc_bbox_center<P: PointTrait>(points: &[P]) -> P {
     let mut min_x = f64::INFINITY;
     let mut min_y = f64::INFINITY;
     let mut max_x = f64::NEG_INFINITY;
     let mut max_y = f64::NEG_INFINITY;
     for p in points.iter() {
-        min_x = min_x.min(p.x);
-        min_y = min_y.min(p.y);
-        max_x = max_x.max(p.x);
-        max_y = max_y.max(p.y);
+        min_x = min_x.min(p.x());
+        min_y = min_y.min(p.y());
+        max_x = max_x.max(p.x());
+        max_y = max_y.max(p.y());
     }
-    Point {
-        x: (min_x + max_x) / 2.0,
-        y: (min_y + max_y) / 2.0,
-    }
+    P::new(
+        (min_x + max_x) / 2.0,
+        (min_y + max_y) / 2.0,
+    )
 }
 
-fn find_closest_point(points: &[Point], p0: &Point) -> Option<usize> {
+fn find_closest_point<P: PointTrait>(points: &[P], p0: &P) -> Option<usize> {
     let mut min_dist = f64::INFINITY;
     let mut k: usize = 0;
     for (i, p) in points.iter().enumerate() {
@@ -428,7 +463,7 @@ fn find_closest_point(points: &[Point], p0: &Point) -> Option<usize> {
     }
 }
 
-fn find_seed_triangle(points: &[Point]) -> Option<(usize, usize, usize)> {
+fn find_seed_triangle(points: &[impl PointTrait]) -> Option<(usize, usize, usize)> {
     // pick a seed point close to the center
     let bbox_center = calc_bbox_center(points);
     let i0 = find_closest_point(points, &bbox_center)?;
@@ -469,16 +504,16 @@ fn sortf(f: &mut [(usize, f64)]) {
 }
 
 /// Order collinear points by dx (or dy if all x are identical) and return the list as a hull
-fn handle_collinear_points(points: &[Point]) -> Triangulation {
-    let Point { x, y } = points.first().cloned().unwrap_or_default();
+fn handle_collinear_points(points: &[impl PointTrait]) -> Triangulation {
+    let (x, y) = points.first().cloned().map(|p| (p.x(), p.y())).unwrap_or_default();
 
     let mut dist: Vec<_> = points
         .iter()
         .enumerate()
         .map(|(i, p)| {
-            let mut d = p.x - x;
+            let mut d = p.x() - x;
             if d == 0.0 {
-                d = p.y - y;
+                d = p.y() - y;
             }
             (i, d)
         })
@@ -500,7 +535,7 @@ fn handle_collinear_points(points: &[Point]) -> Triangulation {
 /// Triangulate a set of 2D points.
 /// Returns the triangulation for the input points.
 /// For the degenerated case when all points are collinear, returns an empty triangulation where all points are in the hull.
-pub fn triangulate(points: &[Point]) -> Triangulation {
+pub fn triangulate(points: &[impl PointTrait]) -> Triangulation {
     let seed_triangle = find_seed_triangle(points);
     if seed_triangle.is_none() {
         return handle_collinear_points(points);
