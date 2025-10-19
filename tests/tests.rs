@@ -1,5 +1,9 @@
-use delaunator::{triangulate, Point, Triangulation, EMPTY, EPSILON};
-use std::f64;
+use delaunator::{
+    triangulate, DefaultGlobalFunctions, GlobalFunctions, Number, Orient, Point, Triangulation,
+    EMPTY,
+};
+use serde::de::DeserializeOwned;
+use std::fmt::{Debug, Display};
 use std::fs::File;
 
 macro_rules! test_fixture {
@@ -7,15 +11,16 @@ macro_rules! test_fixture {
         #[test]
         fn $fixture_name() {
             let path = format!("tests/fixtures/{}.json", stringify!($fixture_name));
-            let points = load_fixture(&path);
-            validate(&points);
+            validate(&load_fixture::<[f32; 2]>(&path));
+            validate(&load_fixture::<[f64; 2]>(&path));
         }
     };
 }
 
 #[test]
 fn basic() {
-    validate(&load_fixture("tests/fixtures/basic.json"));
+    validate(&load_fixture::<[f32; 2]>("tests/fixtures/basic.json"));
+    validate(&load_fixture::<[f64; 2]>("tests/fixtures/basic.json"));
 }
 
 test_fixture!(robust2);
@@ -36,13 +41,22 @@ test_fixture!(issue44js);
 
 #[test]
 fn robustness() {
-    let points = load_fixture("tests/fixtures/robust1.json");
+    let points_f32 = load_fixture::<[f32; 2]>("tests/fixtures/robust1.json");
 
-    validate(&points);
-    validate(&(scale_points(&points, 1e-9)));
-    validate(&(scale_points(&points, 1e-2)));
-    validate(&(scale_points(&points, 100.0)));
-    validate(&(scale_points(&points, 1e9)));
+    validate(&points_f32);
+    // f32 does not have enough precision to handle this scale
+    // validate(&(scale_points(points_f32.iter().copied(), 1e-9)));
+    validate(&(scale_points(points_f32.iter().copied(), 1e-2)));
+    validate(&(scale_points(points_f32.iter().copied(), 100.0)));
+    validate(&(scale_points(points_f32.iter().copied(), 1e9)));
+
+    let points_f64 = load_fixture::<[f64; 2]>("tests/fixtures/robust1.json");
+
+    validate(&points_f64);
+    validate(&(scale_points(points_f64.iter().copied(), 1e-9)));
+    validate(&(scale_points(points_f64.iter().copied(), 1e-2)));
+    validate(&(scale_points(points_f64.iter().copied(), 100.0)));
+    validate(&(scale_points(points_f64.iter().copied(), 1e9)));
 }
 
 #[test]
@@ -58,7 +72,7 @@ fn bad_input() {
     assert!(halfedges.is_empty(), "Expected no edges (0 point)");
     assert!(hull.is_empty(), "Expected no hull (0 point)");
 
-    points.push(Point { x: 0., y: 0. });
+    points.push([0., 0.]);
     let Triangulation {
         triangles,
         halfedges,
@@ -69,7 +83,7 @@ fn bad_input() {
     assert!(halfedges.is_empty(), "Expected no edges (1 point)");
     assert!(hull.len() == 1, "Expected single point on hull (1 point)");
 
-    points.push(Point { x: 1., y: 0. });
+    points.push([1., 0.]);
     let Triangulation {
         triangles,
         halfedges,
@@ -84,7 +98,7 @@ fn bad_input() {
         "Expected ordered hull points (2 point)"
     );
 
-    points.push(Point { x: 2., y: 0. });
+    points.push([2., 0.]);
     let Triangulation {
         triangles,
         halfedges,
@@ -99,8 +113,9 @@ fn bad_input() {
         halfedges.is_empty(),
         "Expected no edges (3 collinear points)"
     );
-    assert!(
-        hull.len() == 3,
+    assert_eq!(
+        hull.len(),
+        3,
         "Expected three points on hull (3 collinear points)"
     );
     assert!(
@@ -108,18 +123,15 @@ fn bad_input() {
         "Expected ordered hull points (3 collinear points)"
     );
 
-    points.push(Point { x: 1., y: 1. });
+    points.push([1., 1.]);
     validate(&points);
 }
 
 #[test]
 fn unordered_collinear_points_input() {
-    let points: Vec<Point> = [10, 2, 4, 4, 1, 0, 3, 6, 8, 5, 7, 9]
+    let points: Vec<_> = [10, 2, 4, 4, 1, 0, 3, 6, 8, 5, 7, 9]
         .iter()
-        .map(|y| Point {
-            x: 0.0,
-            y: *y as f64,
-        })
+        .map(|y| (0.0, *y as f64))
         .collect();
     let duplicated = 1;
 
@@ -137,21 +149,24 @@ fn unordered_collinear_points_input() {
         halfedges.is_empty(),
         "Expected no edges (unordered collinear points)"
     );
-    assert!(
-        hull.len() == points.len() - duplicated,
+    assert_eq!(
+        hull.len(),
+        points.len() - duplicated,
         "Expected all non-coincident points on hull (unordered collinear points)"
     );
     assert!(
         hull.iter()
             .enumerate()
-            .all(|(i, v)| points[*v].y == (i as f64)),
+            .all(|(i, v)| points[*v].y() == (i as f64)),
         "Expected ordered hull points (unordered collinear points)"
     );
 }
 
 #[test]
 fn hull_collinear_issue24() {
-    let points = load_fixture("tests/fixtures/issue24.json");
+    validate(&load_fixture::<[f32; 2]>("tests/fixtures/issue24.json"));
+
+    let points = load_fixture::<[f64; 2]>("tests/fixtures/issue24.json");
     validate(&points);
 
     let t = triangulate(&points);
@@ -163,51 +178,28 @@ fn hull_collinear_issue24() {
 /// In this test, the output does not matter as long as an output is returned.
 fn invalid_nan_sequence() {
     let points = vec![
-        Point { x: -3.5, y: -1.5 },
-        Point {
-            x: f64::NAN,
-            y: f64::NAN,
-        },
-        Point {
-            x: f64::NAN,
-            y: f64::NAN,
-        },
-        Point { x: -3.5, y: -1.5 },
+        (-3.5, -1.5),
+        (f64::NAN, f64::NAN),
+        (f64::NAN, f64::NAN),
+        (-3.5, -1.5),
     ];
     triangulate(&points);
 }
 
-#[test]
-/// The test demonstrates and validates our tuple and array round tripping of `Point`
-fn tuple_array_conv() {
-    // Tuple/Array --> Point
-    assert_eq!(Into::<Point>::into((1., 2.)), Point { x: 1., y: 2. });
-    assert_eq!(Into::<Point>::into([1., 2.]), Point { x: 1., y: 2. });
-
-    // Point --> Tuple/Array
-    assert_eq!(Into::<(f64, f64)>::into(Point { x: 1., y: 2. }), (1., 2.));
-    assert_eq!(Into::<[f64; 2]>::into(Point { x: 1., y: 2. }), [1., 2.]);
+fn scale_points<P: Point>(points: impl IntoIterator<Item = P>, scale: P::Number) -> Vec<P> {
+    points
+        .into_iter()
+        .map(move |p| P::new_point(p.x() * scale, p.y() * scale))
+        .collect()
 }
 
-fn scale_points(points: &[Point], scale: f64) -> Vec<Point> {
-    let scaled: Vec<Point> = points
-        .iter()
-        .map(|p| Point {
-            x: p.x * scale,
-            y: p.y * scale,
-        })
-        .collect();
-    scaled
-}
-
-fn load_fixture(path: &str) -> Vec<Point> {
+fn load_fixture<P: Point>(path: &str) -> Vec<P>
+where
+    P::Number: DeserializeOwned,
+{
     let file = File::open(path).unwrap();
-    let u: Vec<(f64, f64)> = serde_json::from_reader(file).unwrap();
-    u.iter().map(|p| Point { x: p.0, y: p.1 }).collect()
-}
-
-fn orient(p: &Point, q: &Point, r: &Point) -> f64 {
-    robust::orient2d(p.into(), q.into(), r.into())
+    let u: Vec<(P::Number, P::Number)> = serde_json::from_reader(file).unwrap();
+    u.iter().map(|p| Point::new_point(p.0, p.1)).collect()
 }
 
 /// make sure hull is convex and counter-clockwise (p1 is to the right of the directed line p0 --> p2)
@@ -216,25 +208,25 @@ fn orient(p: &Point, q: &Point, r: &Point) -> f64 {
 //   \                           ^
 //    > p0 ---------------> p2 /
 //              p1
-fn assert_convex(p0: &Point, p1: &Point, p2: &Point) {
-    let l = orient(p0, p2, p1);
-    assert!(l >= 0., "p1 ({:?}) is to the left of the directed line p0 ({:?}) --> p2 ({:?}). Hull is not convex.", p1, p0, p2);
+fn assert_convex<N: Number + Into<f64>, P: Point<Number = N> + Debug>(p0: &P, p1: &P, p2: &P) {
+    let l = DefaultGlobalFunctions::<P>::const_new().orient(p0, p2, p1);
+    assert!(matches!(l, Orient::Clockwise | Orient::Collinear), "p1 ({:?}) is to the left of the directed line p0 ({:?}) --> p2 ({:?}). Hull is not convex.", p1, p0, p2);
 
-    if l == 0. {
+    if l == Orient::Collinear {
         // if p0, p1 and p2 are collinear, they must be ordered
         // that means that p1 - p0 = c * (p2 - p0), where c is (0..1) but not inclusive (linear combination)
-        let c = ((p1.x - p0.x) / (p2.x - p0.x)).max((p1.y - p0.y) / (p2.y - p0.y));
-        assert!(c > 0., "incorrect ordering, found p1, p0, p2, expected p0 ({:?}), p1 ({:?}), p2 ({:?}). Invalid hull.", p0, p1, p2);
-        assert!(c < 1., "incorrect ordering, found p0, p2, p1, expected p0 ({:?}), p1 ({:?}), p2 ({:?}). Invalid hull.", p0, p1, p2);
+        let c = ((p1.x() - p0.x()) / (p2.x() - p0.x())).max((p1.y() - p0.y()) / (p2.y() - p0.y()));
+        assert!(c > N::ZERO, "incorrect ordering, found p1, p0, p2, expected p0 ({:?}), p1 ({:?}), p2 ({:?}). Invalid hull.", p0, p1, p2);
+        assert!(c < N::ONE, "incorrect ordering, found p0, p2, p1, expected p0 ({:?}), p1 ({:?}), p2 ({:?}). Invalid hull.", p0, p1, p2);
     }
 }
 
-fn validate(points: &[Point]) {
+fn validate<N: Number + Display + Into<f64>>(points: &[impl Point<Number = N> + Debug]) {
     let Triangulation {
         triangles,
         halfedges,
         hull,
-    } = triangulate(&points);
+    } = triangulate(points);
 
     // validate halfedges
     for (i, &h) in halfedges.iter().enumerate() {
@@ -252,10 +244,10 @@ fn validate(points: &[Point]) {
             let p1 = &points[hull[(i + 1) % hull.len()]];
             let p2 = &points[hull[(i + 2) % hull.len()]];
             assert_convex(p0, p1, p2);
-            hull_areas.push((p1.x - p0.x) * (p1.y + p0.y));
+            hull_areas.push((p1.x() - p0.x()) * (p1.y() + p0.y()));
         }
 
-        sum(&hull_areas)
+        sum(hull_areas)
     };
     let triangles_area = {
         let mut triangle_areas = Vec::new();
@@ -264,30 +256,33 @@ fn validate(points: &[Point]) {
             let a = &points[triangles[i]];
             let b = &points[triangles[i + 1]];
             let c = &points[triangles[i + 2]];
-            triangle_areas.push(((b.y - a.y) * (c.x - b.x) - (b.x - a.x) * (c.y - b.y)).abs());
+            triangle_areas.push(
+                ((b.y() - a.y()) * (c.x() - b.x()) - (b.x() - a.x()) * (c.y() - b.y())).abs(),
+            );
             i += 3;
         }
-        sum(&triangle_areas)
+        sum(triangle_areas)
     };
 
     let err = ((hull_area - triangles_area) / hull_area).abs();
-    if err > EPSILON {
+    if err > N::EPSILON {
         panic!("Triangulation is broken: {} error", err);
     }
 }
 
 // Kahan and Babuska summation, Neumaier variant; accumulates less FP error
-fn sum(x: &[f64]) -> f64 {
-    let mut sum = x[0];
-    let mut err: f64 = 0.0;
-    for i in 1..x.len() {
-        let k = x[i];
+fn sum<N: Number>(x: impl IntoIterator<Item = N>) -> N {
+    let mut iter = x.into_iter();
+    let mut sum = iter.next().unwrap_or(N::ZERO);
+    let mut err = N::ZERO;
+    for k in iter {
         let m = sum + k;
-        err += if sum.abs() >= k.abs() {
-            sum - m + k
-        } else {
-            k - m + sum
-        };
+        err = err
+            + if sum.abs() >= k.abs() {
+                sum - m + k
+            } else {
+                k - m + sum
+            };
         sum = m;
     }
     sum + err

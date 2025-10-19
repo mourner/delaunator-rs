@@ -15,10 +15,7 @@ fn main() -> std::io::Result<()> {
     let default_path = "tests/fixtures/robust4.json".to_string();
     let args = env::args().collect::<Vec<String>>();
     let path = args.get(1).unwrap_or(&default_path);
-    let points: Vec<Point> = serde_json::from_reader::<_, Vec<(f64, f64)>>(File::open(path)?)?
-        .iter()
-        .map(|p| Point { x: p.0, y: p.1 })
-        .collect();
+    let points = serde_json::from_reader::<_, Vec<(f64, f64)>>(File::open(path)?)?;
 
     // triangulate and scale points for display
     let triangulation = delaunator::triangulate(&points);
@@ -41,7 +38,7 @@ fn main() -> std::io::Result<()> {
                 let start = &points[triangulation.triangles[e]];
                 let end = &points[triangulation.triangles[next_halfedge(e)]];
                 let color = if triangulation.halfedges[e] == EMPTY { HULL_COLOR } else { LINE_COLOR };
-                acc + &format!(r#"<line x1="{x0}" y1="{y0}" x2="{x1}" y2="{y1}" style="stroke:{color};stroke-width:{width}" />"#, x0 = start.x, y0 = start.y, x1=end.x, y1=end.y, width = LINE_WIDTH, color = color)
+                acc + &format!(r#"<line x1="{x0}" y1="{y0}" x2="{x1}" y2="{y1}" style="stroke:{color};stroke-width:{width}" />"#, x0 = start.x(), y0 = start.y(), x1=end.x(), y1=end.y(), width = LINE_WIDTH, color = color)
             } else {
                 acc
             }
@@ -52,12 +49,12 @@ fn main() -> std::io::Result<()> {
 
 /// Finds the center point and farthest point from it, then generates a new vector of
 /// scaled and offset points such that they fit between [0..SIZE]
-fn center_and_scale(points: &Vec<Point>, t: &Triangulation) -> Vec<Point> {
-    let center = &points[*t.triangles.get(0).unwrap_or(&0)];
+fn center_and_scale<P: Point<Number = f64>>(points: &[P], t: &Triangulation) -> Vec<P> {
+    let center = &points[*t.triangles.first().unwrap_or(&0)];
     let farthest_distance = points
         .iter()
         .map(|p| {
-            let (x, y) = (center.x - p.x, center.y - p.y);
+            let (x, y) = (center.x() - p.x(), center.y() - p.y());
             x * x + y * y
         })
         .reduce(f64::max)
@@ -65,19 +62,16 @@ fn center_and_scale(points: &Vec<Point>, t: &Triangulation) -> Vec<Point> {
         .sqrt();
     let scale = CANVAS_SIZE / (farthest_distance * 2.0);
     let offset = (
-        (CANVAS_SIZE / 2.0) - (scale * center.x),
-        (CANVAS_SIZE / 2.0) - (scale * center.y),
+        (CANVAS_SIZE / 2.0) - (scale * center.x()),
+        (CANVAS_SIZE / 2.0) - (scale * center.y()),
     );
     points
         .iter()
-        .map(|p| Point {
-            x: scale * p.x + offset.0,
-            y: scale * p.y + offset.1,
-        })
+        .map(|p| P::new_point(scale * p.x() + offset.0, scale * p.y() + offset.1))
         .collect()
 }
 
-fn render_point(points: &[Point], triangulation: &Triangulation) -> String {
+fn render_point(points: &[impl Point<Number = f64>], triangulation: &Triangulation) -> String {
     let mut circles = points
         .iter()
         .enumerate()
@@ -89,8 +83,8 @@ fn render_point(points: &[Point], triangulation: &Triangulation) -> String {
             };
             acc + &format!(
                 r#"<circle cx="{x}" cy="{y}" r="{size}" fill="{color}"/>"#,
-                x = p.x,
-                y = p.y,
+                x = p.x(),
+                y = p.y(),
                 size = POINT_SIZE,
                 color = color
             )
@@ -102,8 +96,8 @@ fn render_point(points: &[Point], triangulation: &Triangulation) -> String {
             acc + &format!(
                 r#"<text x="{x}" y="{y}" font-size="20" fill="black">{i}</text>"#,
                 i = i,
-                x = p.x + 10.,
-                y = p.y - 5.
+                x = p.x() + 10.,
+                y = p.y() - 5.
             )
         })
     }

@@ -3,10 +3,7 @@ use core::iter::repeat_with;
 const N: usize = 1_000_000;
 
 fn main() {
-    let points: Vec<_> = repeat_with(rand::random)
-        .map(|(x, y)| delaunator::Point { x, y })
-        .take(N)
-        .collect();
+    let points: Vec<(f64, f64)> = repeat_with(rand::random).take(N).collect();
 
     let now = std::time::Instant::now();
     let result = delaunator::triangulate(&points);
