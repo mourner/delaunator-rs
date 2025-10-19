@@ -1,7 +1,5 @@
 use core::cmp::Ordering;
-use core::marker::PhantomData;
 use core::ops::{Add, Div, Mul, Sub};
-use robust::orient2d;
 
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub enum Orient {
@@ -31,28 +29,35 @@ pub trait GlobalFunctions {
     fn sort_slice_by<T>(&self, s: &mut [T], f: impl FnMut(&T, &T) -> Ordering);
 }
 
+#[cfg(feature = "robust")]
 fn into_robust_coord<N: Number + Into<f64>>(p: &impl Point<Number = N>) -> robust::Coord<N> {
     robust::Coord { x: p.x(), y: p.y() }
 }
 
+#[cfg(feature = "robust")]
 #[derive(Debug)]
-pub struct DefaultGlobalFunctions<P: Point>(PhantomData<P>);
+pub struct DefaultGlobalFunctions<P: Point>(core::marker::PhantomData<P>);
+#[cfg(feature = "robust")]
 impl<P: Point> DefaultGlobalFunctions<P> {
     pub const fn const_new() -> Self {
-        Self(PhantomData)
+        Self(core::marker::PhantomData)
     }
 }
+#[cfg(feature = "robust")]
 impl<P: Point> Copy for DefaultGlobalFunctions<P> {}
+#[cfg(feature = "robust")]
 impl<P: Point> Clone for DefaultGlobalFunctions<P> {
     fn clone(&self) -> Self {
         *self
     }
 }
+#[cfg(feature = "robust")]
 impl<P: Point> Default for DefaultGlobalFunctions<P> {
     fn default() -> Self {
-        Self(PhantomData)
+        Self(core::marker::PhantomData)
     }
 }
+#[cfg(feature = "robust")]
 impl<P: Point> GlobalFunctions for DefaultGlobalFunctions<P>
 where
     P::Number: Into<f64>,
@@ -70,7 +75,7 @@ where
         // Returns a **negative** value if ```self```, ```q``` and ```r``` occur in counterclockwise order (```r``` is to the left of the directed line ```self``` --> ```q```)
         // Returns a **positive** value if they occur in clockwise order(```r``` is to the right of the directed line ```self``` --> ```q```)
         // Returns zero is they are collinear
-        match orient2d(
+        match robust::orient2d(
             into_robust_coord(p),
             into_robust_coord(q),
             into_robust_coord(r),
@@ -201,6 +206,7 @@ pub trait Number:
     fn min(self, other: Self) -> Self;
 }
 
+#[cfg(feature = "robust")]
 impl<N> Point for robust::Coord<N>
 where
     N: Number + Into<f64>,
@@ -291,7 +297,7 @@ impl Number for f64 {
     #[inline]
     fn abs(self) -> Self {
         const SIGN_BIT: u64 = 1 << 63;
-        f64::from_bits(f64::to_bits(f) & !SIGN_BIT)
+        f64::from_bits(f64::to_bits(self) & !SIGN_BIT)
     }
 
     #[cfg(feature = "std")]
@@ -307,7 +313,7 @@ impl Number for f64 {
         if res > self {
             res -= 1.0;
         }
-        res as f64
+        res
     }
 
     #[cfg(feature = "std")]
@@ -392,7 +398,7 @@ impl Number for f32 {
         if res > self {
             res -= 1.0;
         }
-        res as f32
+        res
     }
 
     #[cfg(feature = "std")]

@@ -32,7 +32,7 @@ pub mod traits;
 pub use traits::*;
 
 use alloc::vec::Vec;
-use std::cmp::Ordering;
+use core::cmp::Ordering;
 
 /// Represents the area outside of the triangulation.
 /// Halfedges on the convex hull (which don't have an adjacent halfedge)
@@ -436,6 +436,7 @@ fn handle_collinear_points<P: Point>(
 /// Triangulate a set of 2D points.
 /// Returns the triangulation for the input points.
 /// For the degenerated case when all points are collinear, returns an empty triangulation where all points are in the hull.
+#[cfg(feature = "robust")]
 pub fn triangulate<P: Point>(points: &[P]) -> Triangulation
 where
     P::Number: Into<f64>,

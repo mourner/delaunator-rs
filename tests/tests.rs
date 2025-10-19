@@ -1,3 +1,5 @@
+#![cfg(feature = "robust")]
+
 use delaunator::{
     triangulate, DefaultGlobalFunctions, GlobalFunctions, Number, Orient, Point, Triangulation,
     EMPTY,

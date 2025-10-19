@@ -13,7 +13,7 @@ authors = ["Vladimir Agafonkin <agafonkin@gmail.com>"]
 rust-version = "1.60.0"
 
 [dependencies]
-robust = "1.2.0"
+robust = { version = "1.2.0", features = ["no_std"], optional = true }
 
 [dev-dependencies]
 criterion = "0.7.0"
@@ -22,7 +22,8 @@ serde = "1.0.228"
 serde_json = "1.0.132"
 
 [features]
-default = ["std"]
+default = ["std", "robust"]
+robust = ["dep:robust"]
 std = []
 
 [lib]
@@ -31,11 +32,14 @@ bench = false
 [[bench]]
 name = "bench"
 harness = false
+required-features = ["robust"]
 
 [[example]]
 name = "triangulate"
 path = "examples/triangulate.rs"
+required-features = ["robust"]
 
 [[example]]
 name = "svg"
 path = "examples/svg.rs"
+required-features = ["robust"]
