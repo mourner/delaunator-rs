@@ -1,8 +1,6 @@
-#![cfg(feature = "robust")]
-
 use delaunator::{
-    triangulate, DefaultGlobalFunctions, GlobalFunctions, Number, Orient, Point, Triangulation,
-    EMPTY,
+    point_ext::{Orient, PointExt},
+    triangulate, Number, Point, Triangulation, EMPTY,
 };
 use serde::de::DeserializeOwned;
 use std::fmt::{Debug, Display};
@@ -211,7 +209,7 @@ where
 //    > p0 ---------------> p2 /
 //              p1
 fn assert_convex<N: Number + Into<f64>, P: Point<Number = N> + Debug>(p0: &P, p1: &P, p2: &P) {
-    let l = DefaultGlobalFunctions::<P>::const_new().orient(p0, p2, p1);
+    let l = p0.orient(p2, p1);
     assert!(matches!(l, Orient::Clockwise | Orient::Collinear), "p1 ({:?}) is to the left of the directed line p0 ({:?}) --> p2 ({:?}). Hull is not convex.", p1, p0, p2);
 
     if l == Orient::Collinear {

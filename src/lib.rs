@@ -28,11 +28,15 @@ extern crate std;
 #[macro_use]
 extern crate alloc;
 
+pub mod point_ext;
 pub mod traits;
+
 pub use traits::*;
 
 use alloc::vec::Vec;
 use core::cmp::Ordering;
+
+use crate::point_ext::{Orient, PointExt};
 
 /// Represents the area outside of the triangulation.
 /// Halfedges on the convex hull (which don't have an adjacent halfedge)
@@ -128,13 +132,7 @@ impl Triangulation {
         t
     }
 
-    fn legalize<F: GlobalFunctions>(
-        &mut self,
-        a: usize,
-        points: &[F::Point],
-        hull: &mut Hull<F::Point>,
-        functions: &F,
-    ) -> usize {
+    fn legalize<P: Point>(&mut self, a: usize, points: &[P], hull: &mut Hull<P>) -> usize {
         let b = self.halfedges[a];
 
         // if the pair of triangles doesn't satisfy the Delaunay condition
@@ -166,7 +164,7 @@ impl Triangulation {
         let pl = self.triangles[al];
         let p1 = self.triangles[bl];
 
-        let illegal = functions.in_circle(&points[p0], &points[pr], &points[pl], &points[p1]);
+        let illegal = points[p0].in_circle(&points[pr], &points[pl], &points[p1]);
         if illegal {
             self.triangles[a] = p1;
             self.triangles[b] = p0;
@@ -205,8 +203,8 @@ impl Triangulation {
 
             let br = next_halfedge(b);
 
-            self.legalize(a, points, hull, functions);
-            return self.legalize(br, points, hull, functions);
+            self.legalize(a, points, hull);
+            return self.legalize(br, points, hull);
         }
         ar
     }
@@ -264,7 +262,7 @@ impl<P: Point> Hull<P> {
         let dx = p.x() - self.center.x();
         let dy = p.y() - self.center.y();
 
-        let p = dx / ((dx).abs() + (dy).abs());
+        let p = dx / (dx.abs() + dy.abs());
         let a = (if dy > P::Number::ZERO {
             P::Number::THREE - p
         } else {
@@ -272,7 +270,7 @@ impl<P: Point> Hull<P> {
         }) / P::Number::FOUR; // [0..1]
 
         let len = self.hash.len();
-        ((P::Number::from_usize_truncate(len)) * a)
+        ((P::Number::from_usize(len)) * a)
             .floor()
             .into_usize_truncate()
             % len
@@ -283,12 +281,7 @@ impl<P: Point> Hull<P> {
         self.hash[key] = i;
     }
 
-    fn find_visible_edge<F: GlobalFunctions<Point = P>>(
-        &self,
-        p: &F::Point,
-        points: &[F::Point],
-        functions: &F,
-    ) -> (usize, bool) {
+    fn find_visible_edge(&self, p: &P, points: &[P]) -> (usize, bool) {
         let mut start: usize = 0;
         let key = self.hash_key(p);
         let len = self.hash.len();
@@ -302,7 +295,7 @@ impl<P: Point> Hull<P> {
         let mut e = start;
 
         while matches!(
-            functions.orient(p, &points[e], &points[self.next[e]]),
+            p.orient(&points[e], &points[self.next[e]]),
             Orient::Collinear | Orient::CounterClockwise
         ) {
             e = self.next[e];
@@ -336,12 +329,11 @@ fn calc_bbox_center<'a, P: Point>(
 fn find_closest_point<'a, N: Number, P: Point<Number = N> + 'a>(
     points: impl IntoIterator<Item = &'a P>,
     p0: &P,
-    functions: &impl GlobalFunctions<Point = P, Number = N>,
 ) -> Option<usize> {
     let mut min_dist = P::Number::INFINITY;
     let mut k: usize = 0;
     for (i, p) in points.into_iter().enumerate() {
-        let d = functions.dist2(p0, p);
+        let d = p0.dist2(p);
         if d > P::Number::ZERO && d < min_dist {
             k = i;
             min_dist = d;
@@ -356,15 +348,14 @@ fn find_closest_point<'a, N: Number, P: Point<Number = N> + 'a>(
 
 fn find_seed_triangle<N: Number, P: Point<Number = N>>(
     points: &[P],
-    functions: &impl GlobalFunctions<Point = P, Number = N>,
 ) -> Option<(usize, usize, usize)> {
     // pick a seed point close to the center
     let bbox_center: P = calc_bbox_center(points);
-    let i0 = find_closest_point(points, &bbox_center, functions)?;
+    let i0 = find_closest_point(points, &bbox_center)?;
     let p0 = &points[i0];
 
     // find the point closest to the seed
-    let i1 = find_closest_point(points, p0, functions)?;
+    let i1 = find_closest_point(points, p0)?;
     let p1 = &points[i1];
 
     // find the third point which forms the smallest circumcircle with the first two
@@ -374,7 +365,7 @@ fn find_seed_triangle<N: Number, P: Point<Number = N>>(
         if i == i0 || i == i1 {
             continue;
         }
-        let r = functions.circumradius2(p0, p1, p);
+        let r = p0.circumradius2(p1, p);
         if r < min_radius {
             i2 = i;
             min_radius = r;
@@ -385,21 +376,16 @@ fn find_seed_triangle<N: Number, P: Point<Number = N>>(
         None
     } else {
         // swap the order of the seed points for counter-clockwise orientation
-        Some(
-            if functions.orient(p0, p1, &points[i2]) == Orient::Clockwise {
-                (i0, i2, i1)
-            } else {
-                (i0, i1, i2)
-            },
-        )
+        Some(if p0.orient(p1, &points[i2]) == Orient::Clockwise {
+            (i0, i2, i1)
+        } else {
+            (i0, i1, i2)
+        })
     }
 }
 
 /// Order collinear points by dx (or dy if all x are identical) and return the list as a hull
-fn handle_collinear_points<P: Point>(
-    points: &[P],
-    functions: &impl GlobalFunctions<Point = P>,
-) -> Triangulation {
+fn handle_collinear_points<P: Point>(points: &[P]) -> Triangulation {
     let (x, y) = points
         .first()
         .cloned()
@@ -417,7 +403,7 @@ fn handle_collinear_points<P: Point>(
             (i, d)
         })
         .collect();
-    functions.sort_slice_by(&mut dist, |&(_, da), &(_, db)| {
+    P::sort_slice_by(&mut dist, |&(_, da), &(_, db)| {
         da.partial_cmp(&db).unwrap_or(Ordering::Equal)
     });
 
@@ -436,32 +422,16 @@ fn handle_collinear_points<P: Point>(
 /// Triangulate a set of 2D points.
 /// Returns the triangulation for the input points.
 /// For the degenerated case when all points are collinear, returns an empty triangulation where all points are in the hull.
-#[cfg(feature = "robust")]
-pub fn triangulate<P: Point>(points: &[P]) -> Triangulation
-where
-    P::Number: Into<f64>,
-{
-    triangulate_with_functions(points, &DefaultGlobalFunctions::<P>::const_new())
-}
-
-/// Triangulate a set of 2D points.
-/// Returns the triangulation for the input points.
-/// For the degenerated case when all points are collinear, returns an empty triangulation where all points are in the hull.
-///
-/// Allows specifying custom functions to override the default behavior or optimize for specific use cases.
-pub fn triangulate_with_functions<N: Number, P: Point<Number = N>>(
-    points: &[P],
-    functions: &impl GlobalFunctions<Point = P, Number = N>,
-) -> Triangulation {
-    let seed_triangle = find_seed_triangle(points, functions);
+pub fn triangulate<P: Point>(points: &[P]) -> Triangulation {
+    let seed_triangle = find_seed_triangle(points);
     if seed_triangle.is_none() {
-        return handle_collinear_points(points, functions);
+        return handle_collinear_points(points);
     }
 
     let n = points.len();
     let (i0, i1, i2) =
         seed_triangle.expect("At this stage, points are guaranteed to yeild a seed triangle");
-    let center = functions.circumcenter(&points[i0], &points[i1], &points[i2]);
+    let center = points[i0].circumcenter(&points[i1], &points[i2]);
 
     let mut triangulation = Triangulation::new(n);
     triangulation.add_triangle(i0, i1, i2, EMPTY, EMPTY, EMPTY);
@@ -470,20 +440,20 @@ pub fn triangulate_with_functions<N: Number, P: Point<Number = N>>(
     let mut dists: Vec<_> = points
         .iter()
         .enumerate()
-        .map(|(i, point)| (i, functions.dist2(&center, point)))
+        .map(|(i, point)| (i, center.dist2(point)))
         .collect();
 
-    functions.sort_slice_by(&mut dists, |&(_, da), &(_, db)| {
+    P::sort_slice_by(&mut dists, |&(_, da), &(_, db)| {
         da.partial_cmp(&db).unwrap_or(Ordering::Equal)
     });
 
     let mut hull = Hull::new(n, center, i0, i1, i2, points);
 
     for (k, &(i, _)) in dists.iter().enumerate() {
-        let p = &points[i];
+        let p: &P = &points[i];
 
         // skip near-duplicates
-        if k > 0 && functions.nearly_equals(p, &points[dists[k - 1].0]) {
+        if k > 0 && p.nearly_equals(&points[dists[k - 1].0]) {
             continue;
         }
         // skip seed triangle points
@@ -492,7 +462,7 @@ pub fn triangulate_with_functions<N: Number, P: Point<Number = N>>(
         }
 
         // find a visible edge on the convex hull using edge hash
-        let (mut e, walk_back) = hull.find_visible_edge(p, points, functions);
+        let (mut e, walk_back) = hull.find_visible_edge(p, points);
         if e == EMPTY {
             continue; // likely a near-duplicate point; skip it
         }
@@ -501,7 +471,7 @@ pub fn triangulate_with_functions<N: Number, P: Point<Number = N>>(
         let t = triangulation.add_triangle(e, i, hull.next[e], EMPTY, EMPTY, hull.tri[e]);
 
         // recursively flip triangles from the point until they satisfy the Delaunay condition
-        hull.tri[i] = triangulation.legalize(t + 2, points, &mut hull, functions);
+        hull.tri[i] = triangulation.legalize(t + 2, points, &mut hull);
         hull.tri[e] = t; // keep track of boundary triangles on the hull
 
         // walk forward through the hull, adding more triangles and flipping recursively
@@ -509,13 +479,13 @@ pub fn triangulate_with_functions<N: Number, P: Point<Number = N>>(
         loop {
             let q = hull.next[n];
             if matches!(
-                functions.orient(p, &points[n], &points[q]),
+                p.orient(&points[n], &points[q]),
                 Orient::Collinear | Orient::CounterClockwise
             ) {
                 break;
             }
             let t = triangulation.add_triangle(n, i, q, hull.tri[i], EMPTY, hull.tri[n]);
-            hull.tri[i] = triangulation.legalize(t + 2, points, &mut hull, functions);
+            hull.tri[i] = triangulation.legalize(t + 2, points, &mut hull);
             hull.next[n] = EMPTY; // mark as removed
             n = q;
         }
@@ -525,13 +495,13 @@ pub fn triangulate_with_functions<N: Number, P: Point<Number = N>>(
             loop {
                 let q = hull.prev[e];
                 if matches!(
-                    functions.orient(p, &points[q], &points[e]),
+                    p.orient(&points[q], &points[e]),
                     Orient::Collinear | Orient::CounterClockwise
                 ) {
                     break;
                 }
                 let t = triangulation.add_triangle(q, i, e, EMPTY, hull.tri[e], hull.tri[q]);
-                triangulation.legalize(t + 2, points, &mut hull, functions);
+                triangulation.legalize(t + 2, points, &mut hull);
                 hull.tri[q] = t;
                 hull.next[e] = EMPTY; // mark as removed
                 e = q;

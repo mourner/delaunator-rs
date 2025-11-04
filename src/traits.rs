@@ -1,178 +1,48 @@
 use core::cmp::Ordering;
 use core::ops::{Add, Div, Mul, Sub};
 
-#[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq, Hash)]
-pub enum Orient {
-    CounterClockwise,
-    Clockwise,
-    Collinear,
-}
-
-pub trait GlobalFunctions {
-    type Point: Point<Number = Self::Number>;
+/// Trait for types that are 2D points of a given number.
+pub trait Point: Clone {
     type Number: Number;
 
-    fn dist2(&self, p: &Self::Point, q: &Self::Point) -> Self::Number;
-    fn orient(&self, p: &Self::Point, q: &Self::Point, r: &Self::Point) -> Orient;
-    fn circumdelta(
-        &self,
-        p: &Self::Point,
-        b: &Self::Point,
-        c: &Self::Point,
-    ) -> (Self::Number, Self::Number);
-    fn circumradius2(&self, p: &Self::Point, b: &Self::Point, c: &Self::Point) -> Self::Number;
-    fn circumcenter(&self, p: &Self::Point, b: &Self::Point, c: &Self::Point) -> Self::Point;
-    fn in_circle(&self, p: &Self::Point, b: &Self::Point, c: &Self::Point, q: &Self::Point)
-        -> bool;
-    fn nearly_equals(&self, p: &Self::Point, q: &Self::Point) -> bool;
+    /// Creates a new point with the specified numbers.
+    fn new_point(x: Self::Number, y: Self::Number) -> Self
+    where
+        Self: Sized;
+    /// Returns the `x` coordinate.
+    fn x(&self) -> Self::Number;
+    /// Returns the `y` coordiante.
+    fn y(&self) -> Self::Number;
+
+    /// Creates a new point from another point type.
+    #[inline]
+    fn from_point(p: &impl Point<Number = Self::Number>) -> Self {
+        Self::new_point(p.x(), p.y())
+    }
+    /// Converts `&self` into another point type.
+    #[inline]
+    fn to_point<P: Point<Number = Self::Number>>(&self) -> P {
+        P::from_point(self)
+    }
+    /// Converts `self` into another point type.
+    #[inline]
+    fn into_point<P: Point<Number = Self::Number>>(self) -> P {
+        P::from_point(&self)
+    }
+
     /// Can be overridden to use stable sorting. By default, this runs `slice::sort_unstable_by`.
-    fn sort_slice_by<T>(&self, s: &mut [T], f: impl FnMut(&T, &T) -> Ordering);
-}
-
-#[cfg(feature = "robust")]
-fn into_robust_coord<N: Number + Into<f64>>(p: &impl Point<Number = N>) -> robust::Coord<N> {
-    robust::Coord { x: p.x(), y: p.y() }
-}
-
-#[cfg(feature = "robust")]
-#[derive(Debug)]
-pub struct DefaultGlobalFunctions<P: Point>(core::marker::PhantomData<P>);
-#[cfg(feature = "robust")]
-impl<P: Point> DefaultGlobalFunctions<P> {
-    pub const fn const_new() -> Self {
-        Self(core::marker::PhantomData)
-    }
-}
-#[cfg(feature = "robust")]
-impl<P: Point> Copy for DefaultGlobalFunctions<P> {}
-#[cfg(feature = "robust")]
-impl<P: Point> Clone for DefaultGlobalFunctions<P> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-#[cfg(feature = "robust")]
-impl<P: Point> Default for DefaultGlobalFunctions<P> {
-    fn default() -> Self {
-        Self(core::marker::PhantomData)
-    }
-}
-#[cfg(feature = "robust")]
-impl<P: Point> GlobalFunctions for DefaultGlobalFunctions<P>
-where
-    P::Number: Into<f64>,
-{
-    type Point = P;
-    type Number = P::Number;
-
-    fn dist2(&self, p: &Self::Point, q: &Self::Point) -> Self::Number {
-        let dx = p.x() - q.x();
-        let dy = p.y() - q.y();
-        dx * dx + dy * dy
-    }
-
-    fn orient(&self, p: &Self::Point, q: &Self::Point, r: &Self::Point) -> Orient {
-        // Returns a **negative** value if ```self```, ```q``` and ```r``` occur in counterclockwise order (```r``` is to the left of the directed line ```self``` --> ```q```)
-        // Returns a **positive** value if they occur in clockwise order(```r``` is to the right of the directed line ```self``` --> ```q```)
-        // Returns zero is they are collinear
-        match robust::orient2d(
-            into_robust_coord(p),
-            into_robust_coord(q),
-            into_robust_coord(r),
-        )
-        .partial_cmp(&0.0)
-        {
-            Some(Ordering::Less) => Orient::CounterClockwise,
-            Some(Ordering::Equal) => Orient::Collinear,
-            Some(Ordering::Greater) => Orient::Clockwise,
-            None => panic!("orient2d returned NaN"),
-        }
-    }
-
-    fn circumdelta(
-        &self,
-        p: &Self::Point,
-        b: &Self::Point,
-        c: &Self::Point,
-    ) -> (Self::Number, Self::Number) {
-        let dx = b.x() - p.x();
-        let dy = b.y() - p.y();
-        let ex = c.x() - p.x();
-        let ey = c.y() - p.y();
-
-        let bl = dx * dx + dy * dy;
-        let cl = ex * ex + ey * ey;
-        let d = Self::Number::ONE_HALF / (dx * ey - dy * ex);
-
-        let x = (ey * bl - dy * cl) * d;
-        let y = (dx * cl - ex * bl) * d;
-        (x, y)
-    }
-
-    fn circumradius2(&self, p: &Self::Point, b: &Self::Point, c: &Self::Point) -> Self::Number {
-        let (x, y) = self.circumdelta(p, b, c);
-        x * x + y * y
-    }
-
-    fn circumcenter(&self, p: &Self::Point, b: &Self::Point, c: &Self::Point) -> Self::Point {
-        let (x, y) = self.circumdelta(p, b, c);
-        Self::Point::new_point(p.x() + x, p.y() + y)
-    }
-
-    fn in_circle(
-        &self,
-        s: &Self::Point,
-        b: &Self::Point,
-        c: &Self::Point,
-        p: &Self::Point,
-    ) -> bool {
-        let dx = s.x() - p.x();
-        let dy = s.y() - p.y();
-        let ex = b.x() - p.x();
-        let ey = b.y() - p.y();
-        let fx = c.x() - p.x();
-        let fy = c.y() - p.y();
-
-        let ap = dx * dx + dy * dy;
-        let bp = ex * ex + ey * ey;
-        let cp = fx * fx + fy * fy;
-
-        dx * (ey * cp - bp * fy) - dy * (ex * cp - bp * fx) + ap * (ex * fy - ey * fx)
-            < Self::Number::ZERO
-    }
-
-    fn nearly_equals(&self, s: &Self::Point, p: &Self::Point) -> bool {
-        (s.x() - p.x()).abs() <= Self::Number::EPSILON
-            && (s.y() - p.y()).abs() <= Self::Number::EPSILON
-    }
-
-    fn sort_slice_by<T>(&self, s: &mut [T], f: impl FnMut(&T, &T) -> Ordering) {
+    #[inline]
+    fn sort_slice_by<T>(s: &mut [T], f: impl FnMut(&T, &T) -> Ordering) {
         s.sort_unstable_by(f)
     }
 }
 
-pub trait Point: Clone {
-    type Number: Number;
-
-    fn new_point(x: Self::Number, y: Self::Number) -> Self
-    where
-        Self: Sized;
-    fn x(&self) -> Self::Number;
-    fn y(&self) -> Self::Number;
-
-    fn from_point(p: &impl Point<Number = Self::Number>) -> Self {
-        Self::new_point(p.x(), p.y())
-    }
-    fn to_point<P: Point<Number = Self::Number>>(&self) -> P {
-        P::from_point(self)
-    }
-    fn into_point<P: Point<Number = Self::Number>>(self) -> P {
-        P::from_point(&self)
-    }
-}
-
+/// A number that can be used in a triangulation point.
+///
+/// Implemented by default for `f64` and `f32`.
 pub trait Number:
     Copy
+    + Into<f64>
     + Add<Output = Self>
     + Sub<Output = Self>
     + Mul<Output = Self>
@@ -185,31 +55,53 @@ pub trait Number:
     /// `std` implementations use `f{32,64}::EPSILON * 2.0`
     const EPSILON: Self;
 
+    /// The constant value of `0.`.
     const ZERO: Self;
+    /// The constant value of `0.5`.
     const ONE_HALF: Self;
+    /// The constant value of `1.`.
     const ONE: Self;
+    /// The constant value of `2.`.
     const TWO: Self;
+    /// The constant value of `3.`.
     const THREE: Self;
+    /// The constant value of `4.`.
     const FOUR: Self;
 
+    /// Infinity
+    ///
+    /// std implementations use `f{32,64}::INFINITY`
     const INFINITY: Self;
+    /// Negative Infinity
+    ///
+    /// std implementations use `f{32,64}::NEG_INFINITY`
     const NEG_INFINITY: Self;
 
+    /// The absolute value of this number.
     fn abs(self) -> Self;
+    /// The floor of this number.
     fn floor(self) -> Self;
+    /// The squareroot of this number.
     fn sqrt(self) -> Self;
 
-    fn from_usize_truncate(n: usize) -> Self;
+    /// Converts a `usize` into the nearest value.
+    ///
+    /// std implementations use `n as Self`
+    fn from_usize(n: usize) -> Self;
+    /// Converts `self` into a `usize` by truncating the decimal portion.
+    ///
+    /// std implementations use `self as usize`
     fn into_usize_truncate(self) -> usize;
 
+    /// The maximum of this and another number.
     fn max(self, other: Self) -> Self;
+    /// The minimum of this and another number.
     fn min(self, other: Self) -> Self;
 }
 
-#[cfg(feature = "robust")]
 impl<N> Point for robust::Coord<N>
 where
-    N: Number + Into<f64>,
+    N: Number,
 {
     type Number = N;
 
@@ -340,7 +232,7 @@ impl Number for f64 {
     }
 
     #[inline]
-    fn from_usize_truncate(n: usize) -> Self {
+    fn from_usize(n: usize) -> Self {
         n as Self
     }
 
@@ -425,7 +317,7 @@ impl Number for f32 {
     }
 
     #[inline]
-    fn from_usize_truncate(n: usize) -> Self {
+    fn from_usize(n: usize) -> Self {
         n as Self
     }
 
