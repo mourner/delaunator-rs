@@ -1,6 +1,6 @@
 [package]
 name = "delaunator"
-version = "1.0.2"
+version = "2.0.0"
 edition = "2018"
 description = "A very fast 2D Delaunay triangulation library."
 documentation = "https://docs.rs/delaunator"
@@ -10,13 +10,15 @@ license = "ISC"
 categories = ["algorithms", "data-structures"]
 keywords = ["delaunay", "triangulation", "tessellation", "spatial", "geometry"]
 authors = ["Vladimir Agafonkin <agafonkin@gmail.com>"]
+rust-version = "1.60.0"
 
 [dependencies]
-robust = "1.2.0"
+robust = { version = "1.2.0", features = ["no_std"] }
 
 [dev-dependencies]
-criterion = "0.6.0"
+criterion = "0.7.0"
 rand = "0.9.2"
+serde = "1.0.228"
 serde_json = "1.0.132"
 
 [features]
