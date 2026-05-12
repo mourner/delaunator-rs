@@ -236,12 +236,10 @@ impl Triangulation {
         t
     }
 
-    fn legalize(&mut self, a: usize, points: &[Point], hull: &mut Hull) -> usize {
-        let b = self.halfedges[a];
-
+    fn legalize(&mut self, mut a: usize, points: &[Point], hull: &mut Hull) -> usize {
         // if the pair of triangles doesn't satisfy the Delaunay condition
         // (p1 is inside the circumcircle of [p0, pl, pr]), flip them,
-        // then do the same check/flip recursively for the new pair of triangles
+        // then do the same check/flip for the new pair of triangles
         //
         //           pl                    pl
         //          /||\                  /  \
@@ -254,22 +252,45 @@ impl Triangulation {
         //          \||/                  \  /
         //           pr                    pr
         //
-        let ar = prev_halfedge(a);
+        // Iterative form of the natural recursion (which is `legalize(a); return
+        // legalize(br)` after a flip): we push `a` to a stack and continue with `br`,
+        // so the tail call runs first and the discarded recursion runs after via the
+        // stack. The first termination is the tail-call leaf — capture its `ar` and
+        // ignore later terminations from the discarded subtrees.
+        let mut return_ar = 0;
+        let mut have_return = false;
 
-        if b == EMPTY {
-            return ar;
-        }
+        loop {
+            let b = self.halfedges[a];
+            let ar = prev_halfedge(a);
 
-        let al = next_halfedge(a);
-        let bl = prev_halfedge(b);
+            let illegal = b != EMPTY && {
+                let al = next_halfedge(a);
+                let bl = prev_halfedge(b);
+                let p0 = self.triangles[ar];
+                let pr = self.triangles[a];
+                let pl = self.triangles[al];
+                let p1 = self.triangles[bl];
+                points[p0].in_circle(&points[pr], &points[pl], &points[p1])
+            };
 
-        let p0 = self.triangles[ar];
-        let pr = self.triangles[a];
-        let pl = self.triangles[al];
-        let p1 = self.triangles[bl];
+            if !illegal {
+                if !have_return {
+                    return_ar = ar;
+                    have_return = true;
+                }
+                match hull.edge_stack.pop() {
+                    Some(next) => a = next,
+                    None => return return_ar,
+                }
+                continue;
+            }
 
-        let illegal = points[p0].in_circle(&points[pr], &points[pl], &points[p1]);
-        if illegal {
+            // flip
+            let bl = prev_halfedge(b);
+            let p1 = self.triangles[bl];
+            let p0 = self.triangles[ar];
+
             self.triangles[a] = p1;
             self.triangles[b] = p0;
 
@@ -306,11 +327,9 @@ impl Triangulation {
             }
 
             let br = next_halfedge(b);
-
-            self.legalize(a, points, hull);
-            return self.legalize(br, points, hull);
+            hull.edge_stack.push(a); // process X (legalize(a)) later
+            a = br;                  // continue Y (legalize(br)) now
         }
-        ar
     }
 }
 
@@ -322,6 +341,8 @@ struct Hull {
     hash: Vec<usize>,
     start: usize,
     center: Point,
+    // scratch buffer reused across legalize() calls to avoid per-call allocation
+    edge_stack: Vec<usize>,
 }
 
 impl Hull {
@@ -335,6 +356,7 @@ impl Hull {
             hash: vec![EMPTY; hash_len], // angular edge hash
             start: i0,
             center,
+            edge_stack: Vec::new(),
         };
 
         hull.next[i0] = i1;
