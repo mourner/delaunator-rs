@@ -426,6 +426,10 @@ fn calc_bbox_center(points: &[Point]) -> Point {
     }
 }
 
+// Returns the index of the point closest to `p0`, skipping any point that coincides
+// with `p0` (distance 0). The zero-distance filter both excludes `p0` itself when
+// `p0` is a point in the slice (the second seed-selection call) and guards against
+// degenerate duplicate-coordinate inputs.
 fn find_closest_point(points: &[Point], p0: &Point) -> Option<usize> {
     let mut min_dist = f64::INFINITY;
     let mut k: usize = 0;
@@ -485,17 +489,17 @@ fn sortf(f: &mut [(usize, f64)]) {
 
 /// Order collinear points by dx (or dy if all x are identical) and return the list as a hull
 fn handle_collinear_points(points: &[Point]) -> Triangulation {
-    let Point { x, y } = points.first().cloned().unwrap_or_default();
+    let (x, y) = match points.first() {
+        Some(p) => (p.x, p.y),
+        None => return Triangulation::new(0),
+    };
 
     let mut dist: Vec<_> = points
         .iter()
         .enumerate()
         .map(|(i, p)| {
-            let mut d = p.x - x;
-            if d == 0.0 {
-                d = p.y - y;
-            }
-            (i, d)
+            let d = p.x - x;
+            (i, if d == 0.0 { p.y - y } else { d })
         })
         .collect();
     sortf(&mut dist);
@@ -537,13 +541,20 @@ pub fn triangulate(points: &[Point]) -> Triangulation {
 
     let mut hull = Hull::new(n, center, i0, i1, i2, points);
 
-    for (k, &(i, _)) in dists.iter().enumerate() {
+    // skip near-duplicates by comparing against the last *kept* point, matching
+    // the canonical JS impl (comparing against the immediate predecessor in sort
+    // order would diverge across transitive near-duplicates).
+    let mut prev_kept: Option<&Point> = None;
+
+    for &(i, _) in &dists {
         let p = &points[i];
 
         // skip near-duplicates
-        if k > 0 && p.nearly_equals(&points[dists[k - 1].0]) {
+        if prev_kept.is_some_and(|q| p.nearly_equals(q)) {
             continue;
         }
+        prev_kept = Some(p);
+
         // skip seed triangle points
         if i == i0 || i == i1 || i == i2 {
             continue;
@@ -644,7 +655,7 @@ fn f64_floor(f: f64) -> f64 {
     if res > f {
         res -= 1.0;
     }
-    res as f64
+    res
 }
 
 #[cfg(feature = "std")]
