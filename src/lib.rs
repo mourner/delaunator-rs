@@ -29,7 +29,7 @@ extern crate std;
 extern crate alloc;
 
 use alloc::vec::Vec;
-use core::{cmp::Ordering, fmt};
+use core::fmt;
 use robust::orient2d;
 
 /// Near-duplicate points (where both `x` and `y` only differ within this value)
@@ -399,11 +399,11 @@ fn calc_bbox_center(points: &[Point]) -> Point {
     let mut min_y = f64::INFINITY;
     let mut max_x = f64::NEG_INFINITY;
     let mut max_y = f64::NEG_INFINITY;
-    for p in points.iter() {
-        min_x = min_x.min(p.x);
-        min_y = min_y.min(p.y);
-        max_x = max_x.max(p.x);
-        max_y = max_y.max(p.y);
+    for p in points {
+        if p.x < min_x { min_x = p.x; }
+        if p.y < min_y { min_y = p.y; }
+        if p.x > max_x { max_x = p.x; }
+        if p.y > max_y { max_y = p.y; }
     }
     Point {
         x: (min_x + max_x) / 2.0,
@@ -465,7 +465,7 @@ fn find_seed_triangle(points: &[Point]) -> Option<(usize, usize, usize)> {
 }
 
 fn sortf(f: &mut [(usize, f64)]) {
-    f.sort_unstable_by(|&(_, da), &(_, db)| da.partial_cmp(&db).unwrap_or(Ordering::Equal));
+    f.sort_unstable_by(|&(_, da), &(_, db)| da.total_cmp(&db));
 }
 
 /// Order collinear points by dx (or dy if all x are identical) and return the list as a hull
@@ -501,14 +501,11 @@ fn handle_collinear_points(points: &[Point]) -> Triangulation {
 /// Returns the triangulation for the input points.
 /// For the degenerated case when all points are collinear, returns an empty triangulation where all points are in the hull.
 pub fn triangulate(points: &[Point]) -> Triangulation {
-    let seed_triangle = find_seed_triangle(points);
-    if seed_triangle.is_none() {
+    let Some((i0, i1, i2)) = find_seed_triangle(points) else {
         return handle_collinear_points(points);
-    }
+    };
 
     let n = points.len();
-    let (i0, i1, i2) =
-        seed_triangle.expect("At this stage, points are guaranteed to yeild a seed triangle");
     let center = points[i0].circumcenter(&points[i1], &points[i2]);
 
     let mut triangulation = Triangulation::new(n);
