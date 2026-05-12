@@ -252,17 +252,14 @@ impl Triangulation {
         //          \||/                  \  /
         //           pr                    pr
         //
-        // Iterative form of the natural recursion (which is `legalize(a); return
-        // legalize(br)` after a flip): we push `a` to a stack and continue with `br`,
-        // so the tail call runs first and the discarded recursion runs after via the
-        // stack. The first termination is the tail-call leaf — capture its `ar` and
-        // ignore later terminations from the discarded subtrees.
-        let mut return_ar = 0;
-        let mut have_return = false;
+        // Recursion eliminated with an explicit edge stack (mirrors the JS implementation):
+        // after a flip we push `br` and re-evaluate `a` (which now has a different neighbor);
+        // pushed edges are processed once the current chain terminates.
+        let mut ar;
 
         loop {
             let b = self.halfedges[a];
-            let ar = prev_halfedge(a);
+            ar = prev_halfedge(a);
 
             let illegal = b != EMPTY && {
                 let al = next_halfedge(a);
@@ -275,13 +272,9 @@ impl Triangulation {
             };
 
             if !illegal {
-                if !have_return {
-                    return_ar = ar;
-                    have_return = true;
-                }
                 match hull.edge_stack.pop() {
                     Some(next) => a = next,
-                    None => return return_ar,
+                    None => return ar,
                 }
                 continue;
             }
@@ -327,8 +320,8 @@ impl Triangulation {
             }
 
             let br = next_halfedge(b);
-            hull.edge_stack.push(a); // process X (legalize(a)) later
-            a = br;                  // continue Y (legalize(br)) now
+            hull.edge_stack.push(br);
+            // `a` unchanged — re-evaluate with its new neighbor
         }
     }
 }
