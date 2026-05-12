@@ -1,5 +1,7 @@
 use core::iter::repeat_with;
-use criterion::{criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion, PlotConfiguration};
+use criterion::{
+    criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion, PlotConfiguration,
+};
 use delaunator::{triangulate, Point};
 use rand::{rngs::StdRng, RngExt, SeedableRng};
 
