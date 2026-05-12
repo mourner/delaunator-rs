@@ -158,7 +158,7 @@ pub fn next_halfedge(i: usize) -> usize {
 
 /// Previous halfedge in a triangle.
 pub fn prev_halfedge(i: usize) -> usize {
-    if i % 3 == 0 {
+    if i.is_multiple_of(3) {
         i + 2
     } else {
         i - 1

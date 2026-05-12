@@ -7,7 +7,7 @@ extern crate rand;
 use core::iter::repeat_with;
 use criterion::{AxisScale, BenchmarkId, Criterion, PlotConfiguration};
 use delaunator::{triangulate, Point};
-use rand::{rngs::StdRng, Rng, SeedableRng};
+use rand::{rngs::StdRng, RngExt, SeedableRng};
 
 const COUNTS: &[usize] = &[100, 1000, 10_000, 100_000];
 

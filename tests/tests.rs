@@ -234,7 +234,7 @@ fn validate(points: &[Point]) {
         triangles,
         halfedges,
         hull,
-    } = triangulate(&points);
+    } = triangulate(points);
 
     // validate halfedges
     for (i, &h) in halfedges.iter().enumerate() {
@@ -280,8 +280,7 @@ fn validate(points: &[Point]) {
 fn sum(x: &[f64]) -> f64 {
     let mut sum = x[0];
     let mut err: f64 = 0.0;
-    for i in 1..x.len() {
-        let k = x[i];
+    for &k in x.iter().skip(1) {
         let m = sum + k;
         err += if sum.abs() >= k.abs() {
             sum - m + k

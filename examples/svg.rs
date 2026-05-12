@@ -52,8 +52,8 @@ fn main() -> std::io::Result<()> {
 
 /// Finds the center point and farthest point from it, then generates a new vector of
 /// scaled and offset points such that they fit between [0..SIZE]
-fn center_and_scale(points: &Vec<Point>, t: &Triangulation) -> Vec<Point> {
-    let center = &points[*t.triangles.get(0).unwrap_or(&0)];
+fn center_and_scale(points: &[Point], t: &Triangulation) -> Vec<Point> {
+    let center = &points[*t.triangles.first().unwrap_or(&0)];
     let farthest_distance = points
         .iter()
         .map(|p| {
