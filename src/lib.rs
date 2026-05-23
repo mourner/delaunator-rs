@@ -15,7 +15,7 @@ let points = vec![
 ];
 
 let result = triangulate(&points);
-println!("{:?}", result.triangles); // [0, 2, 1, 0, 3, 2]
+assert_eq!(result.triangles, [0, 2, 1, 0, 3, 2])
 ```
 */
 
@@ -86,9 +86,12 @@ impl Point {
         dx * dx + dy * dy
     }
 
-    /// Returns a **negative** value if ```self```, ```q``` and ```r``` occur in counterclockwise order (```r``` is to the left of the directed line ```self``` --> ```q```)
-    /// Returns a **positive** value if they occur in clockwise order(```r``` is to the right of the directed line ```self``` --> ```q```)
-    /// Returns zero is they are collinear
+    /// Returns a **negative** value if `self`, `q` and `r` occur in
+    /// counterclockwise order (`r` is to the left of the directed
+    /// line `self` → `q`).
+    /// Returns a **positive** value if they occur in clockwise order
+    /// (`r` is to the right of the directed line `self` → `q`).
+    /// Returns zero is they are collinear.
     fn orient(&self, q: &Self, r: &Self) -> f64 {
         // robust-rs orients Y-axis upwards, our convention is Y downwards. This means that the interpretation of the result must be flipped
         orient2d(self.into(), q.into(), r.into())
@@ -169,14 +172,16 @@ pub fn prev_halfedge(i: usize) -> usize {
 #[derive(Debug, Clone)]
 pub struct Triangulation {
     /// A vector of point indices where each triple represents a Delaunay triangle.
-    /// All triangles are directed counter-clockwise.
+    /// All triangles are directed counter-clockwise.  (Note that this
+    /// library assumes that the Y axis points downward contrarily to
+    /// the usual convention in mathematics.)
     pub triangles: Vec<usize>,
 
     /// A vector of adjacent halfedge indices that allows traversing the triangulation graph.
     ///
     /// `i`-th half-edge in the array corresponds to vertex `triangles[i]`
     /// the half-edge is coming from. `halfedges[i]` is the index of a twin half-edge
-    /// in an adjacent triangle (or `EMPTY` for outer half-edges on the convex hull).
+    /// in an adjacent triangle (or [`EMPTY`] for outer half-edges on the convex hull).
     pub halfedges: Vec<usize>,
 
     /// A vector of indices that reference points on the convex hull of the triangulation,
